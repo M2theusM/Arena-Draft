@@ -11,7 +11,6 @@
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        /* Custom scrollbar for mobile */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
@@ -66,7 +65,6 @@
 
         <!-- ================= TAB 1: PARTICIPANTES ================= -->
         <div id="tab-participants" class="tab-content active space-y-4 sm:space-y-6">
-            <!-- Top Controls & Reset Button Hidden Inside -->
             <div class="flex justify-between items-center bg-slate-900/60 p-3 sm:p-4 rounded-xl border border-slate-800">
                 <div>
                     <h2 class="text-sm sm:text-base font-bold text-white flex items-center space-x-2">
@@ -75,15 +73,12 @@
                     </h2>
                     <p class="text-xs text-slate-400">Adicione jogadores ou importe sua lista do WhatsApp.</p>
                 </div>
-                <!-- Hidden Reset System Button -->
                 <button onclick="confirmResetSystem()" class="text-slate-500 hover:text-red-400 p-2 rounded-lg text-sm transition" title="Redefinir todo o sistema">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
 
-            <!-- Add Player & Import Section Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Manual Add Form -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <h3 class="text-xs uppercase tracking-wider font-bold text-slate-400"><i class="fa-solid fa-user-plus mr-1.5"></i> Novo Participante</h3>
                     <div id="duplicate-warning" class="hidden text-xs text-rose-400 bg-rose-500/10 p-2 rounded border border-rose-500/20">
@@ -104,7 +99,6 @@
                     </form>
                 </div>
 
-                <!-- WhatsApp Import Form -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <h3 class="text-xs uppercase tracking-wider font-bold text-slate-400"><i class="fa-brands fa-whatsapp mr-1.5 text-emerald-400"></i> Importar do WhatsApp</h3>
                     <div>
@@ -112,7 +106,7 @@
                         <textarea id="import-text-area" rows="3" placeholder="Cole aqui a mensagem com a lista de presença..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Estrelas padrão (se não vier informado no final da linha)</label>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Estrelas padrão</label>
                         <select id="default-import-stars" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
                             <option value="5">★★★★★ (5 Estrelas)</option>
                             <option value="4">★★★★☆ (4 Estrelas)</option>
@@ -127,21 +121,17 @@
                 </div>
             </div>
 
-            <!-- Participants List -->
             <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
                 <div class="p-3.5 border-b border-slate-800 flex justify-between items-center bg-slate-900/90">
                     <h3 class="text-xs uppercase tracking-wider font-bold text-slate-300"><i class="fa-solid fa-list mr-1.5"></i> Lista de Participantes Cadastrados</h3>
                     <span class="text-[11px] text-slate-400">Clique no nome para editar estrelas</span>
                 </div>
-                <div class="divide-y divide-slate-800 max-h-[360px] overflow-y-auto" id="participants-list-container">
-                    <!-- Populated via JS -->
-                </div>
+                <div class="divide-y divide-slate-800 max-h-[360px] overflow-y-auto" id="participants-list-container"></div>
             </div>
         </div>
 
         <!-- ================= TAB 2: SORTEIO & FILA ================= -->
         <div id="tab-draft" class="tab-content space-y-4 sm:space-y-6">
-            <!-- Draft Controls Card -->
             <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
@@ -155,7 +145,6 @@
                             <label class="text-xs text-slate-300 whitespace-nowrap">Jog./Time:</label>
                             <input type="number" id="team-size-input" min="3" max="11" value="7" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-center text-white focus:outline-none focus:border-emerald-500">
                         </div>
-                        <!-- Hidden Gear / Draft Trigger Settings -->
                         <div id="draft-trigger-container">
                             <button onclick="executeDraft()" id="btn-execute-draft" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm shadow-md transition active:scale-95 flex items-center space-x-1.5">
                                 <i class="fa-solid fa-shuffle"></i>
@@ -166,15 +155,11 @@
                 </div>
             </div>
 
-            <!-- Active Teams & Waitlist Grid -->
-            <div id="teams-display-area" class="space-y-4">
-                <!-- Populated via JS -->
-            </div>
+            <div id="teams-display-area" class="space-y-4"></div>
         </div>
 
         <!-- ================= TAB 3: PARTIDA ATIVA ================= -->
         <div id="tab-match" class="tab-content space-y-4">
-            <!-- Match Header with Config Icon -->
             <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
                 <div>
                     <span id="match-status-badge" class="bg-amber-500/20 text-amber-400 text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">Partida em Andamento</span>
@@ -184,9 +169,7 @@
                 </button>
             </div>
 
-            <!-- Scoreboard & Timer Card -->
             <div class="bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-800 text-center space-y-5 shadow-lg">
-                <!-- Teams vs Display -->
                 <div class="grid grid-cols-7 items-center gap-2">
                     <div class="col-span-3 text-center">
                         <h3 id="match-team-a-name" class="text-base sm:text-xl font-extrabold text-emerald-400 truncate">Time 1</h3>
@@ -201,14 +184,12 @@
                     </div>
                 </div>
 
-                <!-- Big Score -->
                 <div class="flex justify-center items-center space-x-6 sm:space-x-10">
                     <div class="text-4xl sm:text-6xl font-black text-white bg-slate-950 px-5 py-3 rounded-2xl border border-slate-800 min-w-[80px] sm:min-w-[110px]" id="score-a">0</div>
                     <span class="text-2xl font-bold text-slate-600">:</span>
                     <div class="text-4xl sm:text-6xl font-black text-white bg-slate-950 px-5 py-3 rounded-2xl border border-slate-800 min-w-[80px] sm:min-w-[110px]" id="score-b">0</div>
                 </div>
 
-                <!-- Timer & Controls -->
                 <div class="space-y-3 pt-2 border-t border-slate-800">
                     <div class="text-3xl sm:text-5xl font-mono font-bold tracking-wider text-amber-400" id="match-timer-display">10:00</div>
                     <div class="flex justify-center space-x-2">
@@ -223,9 +204,7 @@
                 </div>
             </div>
 
-            <!-- Match Lineups & Stat Registries -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Team A Match Box -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <div class="flex justify-between items-center pb-2 border-b border-slate-800">
                         <h4 id="match-box-a-title" class="font-bold text-sm text-emerald-400">Elenco Time 1</h4>
@@ -233,12 +212,9 @@
                             + Gol Time 1
                         </button>
                     </div>
-                    <div class="space-y-1.5 max-h-[280px] overflow-y-auto" id="match-players-a">
-                        <!-- Populated via JS -->
-                    </div>
+                    <div class="space-y-1.5 max-h-[280px] overflow-y-auto" id="match-players-a"></div>
                 </div>
 
-                <!-- Team B Match Box -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <div class="flex justify-between items-center pb-2 border-b border-slate-800">
                         <h4 id="match-box-b-title" class="font-bold text-sm text-cyan-400">Elenco Time 2</h4>
@@ -246,9 +222,7 @@
                             + Gol Time 2
                         </button>
                     </div>
-                    <div class="space-y-1.5 max-h-[280px] overflow-y-auto" id="match-players-b">
-                        <!-- Populated via JS -->
-                    </div>
+                    <div class="space-y-1.5 max-h-[280px] overflow-y-auto" id="match-players-b"></div>
                 </div>
             </div>
         </div>
@@ -261,37 +235,24 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Top Scorers -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <h3 class="text-xs uppercase font-bold text-emerald-400 tracking-wider"><i class="fa-solid fa-shoe-prints mr-1"></i> Artilheiros (Gols)</h3>
-                    <div class="divide-y divide-slate-800 text-sm" id="ranking-goals">
-                        <!-- Populated -->
-                    </div>
+                    <div class="divide-y divide-slate-800 text-sm" id="ranking-goals"></div>
                 </div>
-
-                <!-- Top Assists -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <h3 class="text-xs uppercase font-bold text-cyan-400 tracking-wider"><i class="fa-solid fa-hands-bubbles mr-1"></i> Assistências</h3>
-                    <div class="divide-y divide-slate-800 text-sm" id="ranking-assists">
-                        <!-- Populated -->
-                    </div>
+                    <div class="divide-y divide-slate-800 text-sm" id="ranking-assists"></div>
                 </div>
-
-                <!-- Top Winners -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <h3 class="text-xs uppercase font-bold text-amber-400 tracking-wider"><i class="fa-solid fa-medal mr-1"></i> Campeões (Vitórias)</h3>
-                    <div class="divide-y divide-slate-800 text-sm" id="ranking-wins">
-                        <!-- Populated -->
-                    </div>
+                    <div class="divide-y divide-slate-800 text-sm" id="ranking-wins"></div>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- ================= MODALS & OVERLAYS ================= -->
-
-    <!-- Edit Star Rating Modal -->
+    <!-- Modals -->
     <div id="modal-edit-player" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl">
             <h3 class="text-base font-bold text-white flex items-center justify-between">
@@ -314,7 +275,6 @@
         </div>
     </div>
 
-    <!-- Match Settings Modal -->
     <div id="modal-match-settings" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-2xl">
             <h3 class="text-base font-bold text-white flex items-center justify-between">
@@ -327,11 +287,11 @@
                     <input type="number" id="setting-match-duration" min="1" max="60" value="10" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Limite de Gols (Ex: se fizer 2, acaba)</label>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Limite de Gols</label>
                     <input type="number" id="setting-goal-limit" min="1" max="10" value="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Critério de Desempate (se tempo acabar igualado)</label>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Critério de Desempate</label>
                     <select id="setting-tie-breaker" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
                         <option value="coin">Cara ou Coroa (Moeda)</option>
                         <option value="corner">Primeiro Escanteio (Escolha Manual)</option>
@@ -347,7 +307,6 @@
         </div>
     </div>
 
-    <!-- Roulette / Tie-Breaker Overlay Modal -->
     <div id="modal-roulette" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 text-center space-y-5 shadow-2xl">
             <h3 id="roulette-modal-title" class="text-lg font-bold text-white">Sorteio de Substituição</h3>
@@ -367,7 +326,6 @@
 
     <!-- JavaScript Application Logic -->
     <script>
-        // Audio Context & Buzzer setup with mobile support
         let audioCtx = null;
         function initAudio() {
             if (!audioCtx) {
@@ -388,7 +346,6 @@
                 if (audioCtx.state === 'suspended') {
                     audioCtx.resume();
                 }
-                // Alarm clock electronic buzzer pattern (3 sharp beeps)
                 for (let i = 0; i < 3; i++) {
                     setTimeout(() => {
                         let osc = audioCtx.createOscillator();
@@ -408,7 +365,6 @@
             }
         }
 
-        // State Management
         let state = {
             players: [],
             teamA: [],
@@ -425,7 +381,7 @@
                 durationMinutes: 10,
                 goalLimit: 2,
                 tieBreaker: 'coin',
-                teamASide: 'left', // 'left' or 'right'
+                teamASide: 'left',
                 hasDrafted: false
             },
             activeRouletteCallback: null
@@ -457,12 +413,10 @@
             state.match.timerSeconds = last.match.timerSeconds;
             state.match.teamASide = last.match.teamASide;
             state.match.hasDrafted = last.match.hasDrafted;
-            
             renderAll();
             alert("Ação desfeita com sucesso!");
         }
 
-        // Tab Switching
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -477,7 +431,6 @@
             }
         }
 
-        // UI Previews
         function updateStarPreview(val) {
             const stars = '★'.repeat(val) + '☆'.repeat(5 - val);
             document.getElementById('star-preview').innerText = `${stars} (${val})`;
@@ -498,7 +451,6 @@
             }
         }
 
-        // Participants Management
         function addPlayer(e) {
             e.preventDefault();
             const nameInput = document.getElementById('new-player-name');
@@ -524,8 +476,6 @@
             };
 
             state.players.push(newPlayer);
-            
-            // If teams already exist and player is new arrival, handle queue insertion rule
             if(state.match.hasDrafted) {
                 insertLateArrival(newPlayer);
             }
@@ -538,7 +488,6 @@
         }
 
         function insertLateArrival(player) {
-            // "caso não tenha jogadores com 0 partidas, ele ocupa a primeira posição. Caso contrário, entra imediatamente depois do último jogar com 0 partidas"
             const zeroMatchIndex = state.waitlist.map(p => p.matchesPlayed).lastIndexOf(0);
             if (zeroMatchIndex === -1) {
                 state.waitlist.unshift(player);
@@ -556,19 +505,16 @@
             }
 
             saveStateToHistory();
-            const lines = text.split('
-');
+            const lines = text.split(/\r?\n/);
             let addedCount = 0;
 
             lines.forEach(line => {
                 let cleaned = line.trim();
                 if(!cleaned) return;
 
-                // Ignore leading numbers, bullets, symbols (e.g. "1.", "-", "*")
                 cleaned = cleaned.replace(/^[\d\.\-\*\)\s]+/, '').trim();
                 if(!cleaned) return;
 
-                // Check if line ends with a number representing stars (e.g. "Matheus 5" or "Carlos - 4")
                 let stars = defaultStars;
                 const starMatch = cleaned.match(/\s+[-–]?\s*([1-5])$/);
                 if(starMatch) {
@@ -618,7 +564,6 @@
             renderAll();
         }
 
-        // Edit Player Modal
         function openEditPlayerModal(id) {
             const p = state.players.find(x => x.id === id);
             if(!p) return;
@@ -649,7 +594,6 @@
             renderAll();
         }
 
-        // Reset System (Hidden in participants tab via trash icon)
         function confirmResetSystem() {
             if(confirm("Tem certeza que deseja zerar todo o sistema e reiniciar as configurações?")) {
                 saveStateToHistory();
@@ -675,7 +619,6 @@
             }
         }
 
-        // Draft Algorithm & Queue Logic
         function executeDraft() {
             const activePlayers = state.players.filter(p => p.active);
             const teamSize = parseInt(document.getElementById('team-size-input').value) || 7;
@@ -686,17 +629,14 @@
             }
 
             saveStateToHistory();
-
-            // Sort by stars descending for balanced snake draft
             let pool = [...activePlayers].sort((a,b) => b.stars - a.stars);
             
             let tA = [];
             let tB = [];
             let wait = [];
 
-            // Distribute team A and B (balanced snake) plus queue
             let currentTeam = 'A';
-            pool.forEach((player, index) => {
+            pool.forEach((player) => {
                 if(tA.length < teamSize && currentTeam === 'A') {
                     tA.push(player);
                     if(tA.length === teamSize) currentTeam = 'B';
@@ -708,7 +648,6 @@
                 }
             });
 
-            // If team B ended up smaller due to uneven pool
             while(tB.length < teamSize && wait.length > 0) {
                 tB.push(wait.shift());
             }
@@ -719,7 +658,6 @@
             state.match.hasDrafted = true;
             state.match.teamASide = 'left';
 
-            // Auto start match scores & timer
             state.match.scoreA = 0;
             state.match.scoreB = 0;
             resetTimer();
@@ -728,20 +666,14 @@
             switchTab('draft');
         }
 
-        // Team Substation / Roulette Trigger for Blocked Player
         function triggerSubstitution(teamName, playerId) {
             const team = teamName === 'A' ? state.teamA : state.teamB;
             const playerToRemove = team.find(p => p.id === playerId);
             if(!playerToRemove) return;
 
-            // Rule: "apenas jogadores que já jogaram podem ser substituidos, caso o time todo ainda não tenha jogado, os jogadores adicionados posteriormente deverão aguardar..."
-            // Actually rule states: "apenas jogadores que já jogaram podem ser substituidos, caso o time todo ainda não tenha jogado..."
-            // Let's verify candidates for roulette:
-            // "a roleta mostrará todos os jogadores disponíveis no banco (quem ainda não jogou). Se não houver ninguém no banco, ela carregará os jogadores do próximo time da fila para o sorteio!"
-            
             let candidates = state.waitlist.filter(p => p.matchesPlayed === 0);
             if(candidates.length === 0) {
-                candidates = state.waitlist.slice(0, 7); // next team in queue
+                candidates = state.waitlist.slice(0, 7);
             }
 
             if(candidates.length === 0) {
@@ -749,14 +681,11 @@
                 return;
             }
 
-            // Open roulette modal
             openRouletteModal("Sorteio de Banco / Fila", candidates, (selectedPlayer) => {
-                // Perform substitution
                 saveStateToHistory();
                 const index = team.findIndex(p => p.id === playerId);
                 if(index !== -1) {
                     team[index] = selectedPlayer;
-                    // remove selectedPlayer from waitlist and put removed player to waitlist
                     state.waitlist = state.waitlist.filter(p => p.id !== selectedPlayer.id);
                     state.waitlist.push(playerToRemove);
                 }
@@ -801,7 +730,6 @@
             }, 80);
         }
 
-        // Match Timer & Logic
         function toggleTimer() {
             if(state.match.timerRunning) {
                 clearInterval(state.match.interval);
@@ -874,7 +802,6 @@
             }
         }
 
-        // Match Settings Modal
         function openMatchSettings() {
             document.getElementById('setting-match-duration').value = state.match.durationMinutes;
             document.getElementById('setting-goal-limit').value = state.match.goalLimit;
@@ -896,14 +823,12 @@
             alert("Configurações salvas!");
         }
 
-        // Time up / Tie Breaker Handling
         function handleTimeUp() {
             if(state.match.scoreA > state.match.scoreB) {
                 finishMatch('A');
             } else if(state.match.scoreB > state.match.scoreA) {
                 finishMatch('B');
             } else {
-                // Tie breaker rules
                 const method = state.match.tieBreaker;
                 if(method === 'coin') {
                     openContinuousCoinToss();
@@ -918,7 +843,7 @@
                     alert("Empate! Ambos os times saem de campo.");
                     finishMatch('draw');
                 } else if(method === 'goldengol') {
-                    alert("Empate! Gol de Ouro ativado: o próximo gol define o vencedor.");
+                    alert("Empate! Gol de Ouro ativado.");
                     state.match.goalLimit = Math.max(state.match.scoreA, state.match.scoreB) + 1;
                     state.match.timerSeconds = 300;
                     toggleTimer();
@@ -932,7 +857,6 @@
                 const winningTeam = winner.name.includes('Time 1') ? 'A' : 'B';
                 finishMatch(winningTeam);
             });
-            // Make coin spinning continuous until button click
             document.getElementById('roulette-display-box').innerHTML = '<i class="fa-solid fa-coins fa-spin text-3xl text-amber-400"></i><p class="text-xs mt-2 text-slate-300">Moeda girando sem parar...</p>';
             let isHeads = true;
             window.coinInterval = setInterval(() => {
@@ -940,7 +864,6 @@
                 document.getElementById('roulette-display-box').innerHTML = `<i class="fa-solid fa-coins text-3xl text-amber-400"></i><p class="text-sm font-bold mt-2">${isHeads ? 'CARA (Time 1)' : 'COROA (Time 2)'}</p>`;
             }, 300);
             
-            // Override spin button behavior for continuous coin
             document.getElementById('btn-spin-action').onclick = function() {
                 clearInterval(window.coinInterval);
                 const finalWinner = Math.random() < 0.5 ? 'A' : 'B';
@@ -951,11 +874,8 @@
             };
         }
 
-        // Finish Match & Rotate Queue
         function finishMatch(winner) {
             saveStateToHistory();
-            
-            // Increment matchesPlayed for participants
             [...state.teamA, ...state.teamB].forEach(p => {
                 const found = state.players.find(x => x.id === p.id);
                 if(found) found.matchesPlayed++;
@@ -967,28 +887,22 @@
                 state.teamB.forEach(p => { const found = state.players.find(x => x.id === p.id); if(found) found.wins++; });
             }
 
-            // Rotation logic:
-            // "quando um time vence, mantenha ele no lado que ele está, caso esteja na esquerda e vença, o proximo time ocupa o lado direito, e caso esteja na direita, mantenha ele na direita e substitua o time que perdeu."
             const teamSize = state.teamA.length;
             const nextBatch = state.waitlist.splice(0, teamSize);
 
             if(winner === 'A') {
-                // Team A stays left, Team B goes to end of queue, nextBatch takes right
                 state.waitlist.push(...state.teamB);
                 state.teamB = nextBatch;
             } else if(winner === 'B') {
-                // Team B stays right, Team A goes to end of queue, nextBatch takes left
                 state.waitlist.push(...state.teamA);
                 state.teamA = nextBatch;
             } else {
-                // Draw: both go to queue, next 2 batches take over or nextBatch for teamA and rest for teamB
                 state.waitlist.push(...state.teamA);
                 state.waitlist.push(...state.teamB);
                 state.teamA = state.waitlist.splice(0, teamSize);
                 state.teamB = state.waitlist.splice(0, teamSize);
             }
 
-            // Reset match scores & timer
             state.match.scoreA = 0;
             state.match.scoreB = 0;
             resetTimer();
@@ -998,7 +912,6 @@
             alert(`Partida encerrada! Vencedor: ${winner === 'A' ? 'Time 1' : (winner === 'B' ? 'Time 2' : 'Empate')}`);
         }
 
-        // Render Functions
         function renderAll() {
             renderParticipants();
             renderDraftScreen();
@@ -1047,10 +960,8 @@
                 return;
             }
 
-            // Render Team A, Team B and Waitlist
             area.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Team 1 -->
                     <div class="bg-slate-900 p-4 rounded-xl border border-emerald-500/30 space-y-3 shadow-lg">
                         <div class="flex justify-between items-center pb-2 border-b border-slate-800">
                             <div>
@@ -1068,7 +979,7 @@
                                         <span class="font-semibold text-white">${p.name}</span>
                                         <span class="text-amber-400 text-[10px]">${'★'.repeat(p.stars)}</span>
                                     </div>
-                                    <button onclick="triggerSubstitution('A', '${p.id}')" class="text-slate-400 hover:text-amber-400 p-1" title="Bloquear / Substituir por Sorteio">
+                                    <button onclick="triggerSubstitution('A', '${p.id}')" class="text-slate-400 hover:text-amber-400 p-1" title="Substituir por Sorteio">
                                         <i class="fa-solid fa-user-slash text-xs"></i>
                                     </button>
                                 </div>
@@ -1076,7 +987,6 @@
                         </div>
                     </div>
 
-                    <!-- Team 2 -->
                     <div class="bg-slate-900 p-4 rounded-xl border border-cyan-500/30 space-y-3 shadow-lg">
                         <div class="flex justify-between items-center pb-2 border-b border-slate-800">
                             <div>
@@ -1094,7 +1004,7 @@
                                         <span class="font-semibold text-white">${p.name}</span>
                                         <span class="text-amber-400 text-[10px]">${'★'.repeat(p.stars)}</span>
                                     </div>
-                                    <button onclick="triggerSubstitution('B', '${p.id}')" class="text-slate-400 hover:text-amber-400 p-1" title="Bloquear / Substituir por Sorteio">
+                                    <button onclick="triggerSubstitution('B', '${p.id}')" class="text-slate-400 hover:text-amber-400 p-1" title="Substituir por Sorteio">
                                         <i class="fa-solid fa-user-slash text-xs"></i>
                                     </button>
                                 </div>
@@ -1103,7 +1013,6 @@
                     </div>
                 </div>
 
-                <!-- Waitlist / Fila de Espera -->
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
                     <h3 class="text-xs uppercase font-bold text-slate-400 tracking-wider"><i class="fa-solid fa-list-ol mr-1"></i> Fila de Espera (Próximos a Jogar)</h3>
                     <div class="divide-y divide-slate-800 max-h-[220px] overflow-y-auto" id="waitlist-container">
@@ -1166,7 +1075,6 @@
         }
 
         function renderRankings() {
-            // Sort players with tie handling (same rank for identical stats)
             const sortedGoals = [...state.players].sort((a,b) => b.goals - a.goals);
             const sortedAssists = [...state.players].sort((a,b) => b.assists - a.assists);
             const sortedWins = [...state.players].sort((a,b) => b.wins - a.wins);
@@ -1194,7 +1102,7 @@
                     lastVal = p[key];
                 }
                 return `
-                    py-2 flex justify-between items-center text-xs">
+                    <div class="py-2 flex justify-between items-center text-xs">
                         <div class="flex items-center space-x-2">
                             <span class="font-bold text-amber-400 w-5">${rank}º</span>
                             <span class="font-semibold text-white">${p.name}</span>
@@ -1202,10 +1110,9 @@
                         <span class="font-mono font-bold text-slate-300">${p[key]}</span>
                     </div>
                 `;
-            }).join('').replace(/py-2/g, 'py-2');
+            }).join('');
         }
 
-        // Initialize on load
         window.onload = function() {
             updateStarPreview(5);
             updateEditStarPreview(5);
