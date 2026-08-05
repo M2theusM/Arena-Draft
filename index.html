@@ -307,9 +307,11 @@
         </div>
     </div>
 
+    <!-- Roulette Modal with Close Button & Dynamic Player Name Title -->
     <div id="modal-roulette" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 text-center space-y-5 shadow-2xl">
-            <h3 id="roulette-modal-title" class="text-lg font-bold text-white">Sorteio de Substituição</h3>
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 text-center space-y-5 shadow-2xl relative">
+            <button onclick="closeRouletteModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+            <h3 id="roulette-modal-title" class="text-base font-bold text-white px-6">Substituição</h3>
             <div id="roulette-display-box" class="py-6 bg-slate-950 rounded-xl border border-slate-800 text-xl font-bold text-emerald-400 tracking-wide min-h-[90px] flex items-center justify-center px-4 shadow-inner">
                 Pronto para sortear...
             </div>
@@ -619,6 +621,7 @@
             }
         }
 
+        // Fixed Draft Algorithm (Proper Balanced Snake Draft for Team 1, Team 2 & Waitlist)
         function executeDraft() {
             const activePlayers = state.players.filter(p => p.active);
             const teamSize = parseInt(document.getElementById('team-size-input').value) || 7;
@@ -629,28 +632,44 @@
             }
 
             saveStateToHistory();
-            let pool = [...activePlayers].sort((a,b) => b.stars - a.stars);
-            
+
+            // Sort active players by stars descending, then randomize slightly among same stars for fairness
+            let pool = [...activePlayers].sort((a,b) => {
+                if(b.stars !== a.stars) return b.stars - a.stars;
+                return Math.random() - 0.5;
+            });
+
             let tA = [];
             let tB = [];
             let wait = [];
 
-            let currentTeam = 'A';
-            pool.forEach((player) => {
-                if(tA.length < teamSize && currentTeam === 'A') {
-                    tA.push(player);
-                    if(tA.length === teamSize) currentTeam = 'B';
-                } else if(tB.length < teamSize && currentTeam === 'B') {
-                    tB.push(player);
-                    if(tB.length === teamSize) currentTeam = 'wait';
+            // Snake draft distribution for the first 2 * teamSize players
+            let totalTitulares = teamSize * 2;
+            let titularesPool = pool.slice(0, totalTitulares);
+            wait = pool.slice(totalTitulares);
+
+            // Distribute in snake order: 1st to A, 2nd to B, 3rd to B, 4th to A... to balance total stars
+            titularesPool.forEach((player, index) => {
+                let round = Math.floor(index / teamSize);
+                let isEvenRound = (round % 2 === 0);
+                if(isEvenRound) {
+                    if(index % 2 === 0) {
+                        if(tA.length < teamSize) tA.push(player); else tB.push(player);
+                    } else {
+                        if(tB.length < teamSize) tB.push(player); else tA.push(player);
+                    }
                 } else {
-                    wait.push(player);
+                    if(index % 2 === 0) {
+                        if(tB.length < teamSize) tB.push(player); else tA.push(player);
+                    } else {
+                        if(tA.length < teamSize) tA.push(player); else tB.push(player);
+                    }
                 }
             });
 
-            while(tB.length < teamSize && wait.length > 0) {
-                tB.push(wait.shift());
-            }
+            // Ensure exact team sizes if pool was small
+            while(tA.length < teamSize && wait.length > 0) tA.push(wait.shift());
+            while(tB.length < teamSize && wait.length > 0) tB.push(wait.shift());
 
             state.teamA = tA;
             state.teamB = tB;
@@ -681,7 +700,7 @@
                 return;
             }
 
-            openRouletteModal("Sorteio de Banco / Fila", candidates, (selectedPlayer) => {
+            openRouletteModal(`Substituir: ${playerToRemove.name}`, candidates, (selectedPlayer) => {
                 saveStateToHistory();
                 const index = team.findIndex(p => p.id === playerId);
                 if(index !== -1) {
