@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteio de Times de Futebol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .star-rating .fa-star {
+            cursor: pointer;
+            color: #d1d5db;
+            transition: color 0.2s ease-in-out;
+        }
+        .star-rating .fa-star.active,
+        .star-rating .fa-star:hover,
+        .star-rating .fa-star:hover ~ .fa-star {
+            color: #fbbf24;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn-hover-effect {
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+        }
+        .btn-hover-effect:active {
+            transform: scale(0.98);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 50; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 0.5rem;
+        }
+
+        @keyframes spinContinuous {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+        }
+        .coin-spin-continuous {
+            animation: spinContinuous 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <header class="bg-green-700 text-white p-4 shadow-md sticky top-0 z-10">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-futbol"></i>
+                Arena Draft
+            </h1>
+            <nav class="flex gap-2 md:gap-4 flex-wrap justify-end">
+                <button onclick="undoAction()" class="px-3 py-1 rounded-md text-yellow-300 text-sm font-semibold transition-colors hover:bg-green-600" title="Desfazer Última Ação"><i class="fa-solid fa-rotate-left"></i> Desfazer</button>
+                <span class="border-l border-green-600 mx-1 hidden md:inline"></span>
+                <button onclick="switchTab('players')" id="nav-players" class="px-3 py-1 rounded-md bg-green-800 font-semibold text-sm transition-colors hover:bg-green-600">Participantes</button>
+                <button onclick="switchTab('draft')" id="nav-draft" class="px-3 py-1 rounded-md text-green-100 text-sm transition-colors hover:bg-green-600">Sorteio</button>
+                <button onclick="switchTab('match')" id="nav-match" class="px-3 py-1 rounded-md text-green-100 text-sm transition-colors hover:bg-green-600 hidden">Partida</button>
+                <button onclick="switchTab('ranking')" id="nav-ranking" class="px-3 py-1 rounded-md text-green-100 text-sm transition-colors hover:bg-green-600">Ranking</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
+
+        <!-- Tab 1: Players Management -->
+        <section id="tab-players" class="glass-panel rounded-xl p-6 md:p-8 animate-fade-in">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2 flex justify-between items-center">
+                <span>Participantes</span>
+                <button onclick="openResetModal()" class="text-gray-400 hover:text-red-500 transition-colors text-lg" title="Zerar Todo o Sistema">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Add Player Form -->
+                <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-700">Adicionar Jogador</h3>
+                    <div class="flex flex-col gap-4">
+                        <div>
+                            <input type="text" id="playerName" placeholder="Nome do Jogador" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <span id="nameErrorMsg" class="text-xs text-red-500 mt-1 hidden font-semibold">Já existe um participante com este nome.</span>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-medium text-gray-600">Nível:</span>
+                            <div class="star-rating text-xl" id="playerRatingInput">
+                                <i class="fa-solid fa-star active" data-rating="1"></i>
+                                <i class="fa-solid fa-star active" data-rating="2"></i>
+                                <i class="fa-solid fa-star active" data-rating="3"></i>
+                                <i class="fa-solid fa-star" data-rating="4"></i>
+                                <i class="fa-solid fa-star" data-rating="5"></i>
+                            </div>
+                            <span id="ratingDisplay" class="text-sm font-bold text-yellow-600 ml-2">3</span>
+                        </div>
+                        
+                        <button onclick="addPlayer()" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-700 btn-hover-effect flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Adicionar
+                        </button>
+                    </div>
+
+                    <div class="mt-6 border-t pt-4">
+                        <button onclick="openImportModal()" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 btn-hover-effect flex items-center justify-center gap-2">
+                            <i class="fa-brands fa-whatsapp"></i> Importar Lista
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Players List -->
+                <div class="bg-white p-5 rounded-lg border border-gray-200 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Lista de Presença (<span id="playerCount">0</span>)</h3>
+                        <button onclick="clearAllPlayers()" class="text-xs text-red-500 hover:text-red-700 font-medium">Limpar Tudo</button>
+                    </div>
+                    
+                    <div class="overflow-y-auto flex-grow pr-2" id="playersListContainer">
+                        <!-- Player items will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Team Drafting -->
+        <section id="tab-draft" class="hidden glass-panel rounded-xl p-6 md:p-8 animate-fade-in">
+            <div class="flex justify-between items-center mb-6 border-b pb-2">
+                <h2 class="text-2xl font-bold text-gray-800">Sorteio de Times</h2>
+                <button onclick="toggleDraftSettings()" class="text-gray-500 hover:text-gray-800 transition-colors" title="Configurações do Sorteio">
+                    <i class="fa-solid fa-gear text-2xl"></i>
+                </button>
+            </div>
+            
+            <div id="draftSettingsPanel" class="hidden flex-col md:flex-row gap-4 mb-8 bg-gray-50 p-4 rounded-lg items-center justify-between border border-gray-200 transition-all">
+                <div class="flex items-center gap-4">
+                    <label for="playersPerTeam" class="font-medium text-gray-700">Jogadores por time:</label>
+                    <input type="number" id="playersPerTeam" value="7" min="2" max="11" class="w-20 px-3 py-2 border rounded-md text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+                
+                <div class="text-sm text-gray-600">
+                    Jogadores Disponíveis: <strong id="availablePlayersCount">0</strong>
+                </div>
+
+                <button onclick="draftTeams()" class="bg-green-600 text-white font-bold py-2 px-6 rounded-md hover:bg-green-700 btn-hover-effect flex items-center gap-2 text-lg shadow-md">
+                    <i class="fa-solid fa-shuffle"></i> Sortear
+                </button>
+            </div>
+
+            <!-- Draft Results -->
+            <div id="teamsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Teams will be injected here -->
+            </div>
+            
+            <!-- Fila de Espera (Waitlist) -->
+            <div id="waitlistContainer" class="hidden mt-4 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-inner">
+                <div class="bg-gray-800 text-white p-3 flex justify-between items-center">
+                    <h3 class="font-bold text-lg"><i class="fa-solid fa-list-ol text-blue-400 mr-2"></i> Fila de Espera (Próximos)</h3>
+                    <span class="text-xs bg-black/40 px-2 py-1 rounded-full font-bold"><span id="waitlistCount">0</span> jogadores</span>
+                </div>
+                <div class="p-4 overflow-y-auto max-h-[400px]">
+                    <div id="waitlistList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <!-- Queue players injected here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Match Dashboard -->
+        <section id="tab-match" class="hidden glass-panel rounded-xl p-4 md:p-6 lg:p-8 min-h-[600px] flex flex-col animate-fade-in relative overflow-hidden">
+            <!-- Scoreboard -->
+            <div class="bg-gray-900 text-white rounded-xl p-6 mb-8 shadow-2xl relative overflow-hidden">
+                <!-- Match Settings Button -->
+                <button onclick="openMatchSettings()" class="absolute top-4 right-4 z-20 text-gray-400 hover:text-white transition-colors" title="Configurações da Partida">
+                    <i class="fa-solid fa-gear text-xl md:text-2xl"></i>
+                </button>
+                
+                <div class="absolute -top-10 -left-10 w-40 h-40 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+                <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+                
+                <div class="flex justify-between items-center relative z-10">
+                    <!-- Team A Score -->
+                    <div class="text-center w-1/3">
+                        <h3 class="text-xl md:text-3xl font-bold text-green-400 truncate px-2" id="matchTeamAName">Time A</h3>
+                        <div class="text-6xl md:text-8xl font-black mt-2" id="scoreTeamA">0</div>
+                    </div>
+                    
+                    <!-- Timer -->
+                    <div class="text-center w-1/3 flex flex-col items-center">
+                        <div class="text-gray-400 text-sm font-semibold tracking-widest uppercase mb-1">Tempo</div>
+                        <div class="text-4xl md:text-5xl font-mono font-bold text-yellow-400 bg-black/50 px-4 py-2 rounded-lg border border-gray-700 shadow-inner" id="matchTimer">10:00</div>
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="toggleTimer()" id="btnTimerToggle" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                            <button onclick="resetTimer()" class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Team B Score -->
+                    <div class="text-center w-1/3">
+                        <h3 class="text-xl md:text-3xl font-bold text-blue-400 truncate px-2" id="matchTeamBName">Time B</h3>
+                        <div class="text-6xl md:text-8xl font-black mt-2" id="scoreTeamB">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Match Events Interface -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-grow">
+                <!-- Team A Roster & Actions -->
+                <div class="bg-white rounded-lg border-2 border-green-200 p-4 shadow-sm flex flex-col">
+                    <h4 class="text-lg font-bold text-center mb-4 text-green-800 border-b pb-2">Elenco <span id="labelTeamA"></span></h4>
+                    <div class="overflow-y-auto flex-grow pr-2" id="matchRosterTeamA"></div>
+                </div>
+
+                <!-- Team B Roster & Actions -->
+                <div class="bg-white rounded-lg border-2 border-blue-200 p-4 shadow-sm flex flex-col">
+                    <h4 class="text-lg font-bold text-center mb-4 text-blue-800 border-b pb-2">Elenco <span id="labelTeamB"></span></h4>
+                    <div class="overflow-y-auto flex-grow pr-2" id="matchRosterTeamB"></div>
+                </div>
+            </div>
+
+            <!-- Tie Breaker Overlay -->
+            <div id="tieBreakerOverlay" class="absolute inset-0 bg-black/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center hidden">
+                <h2 class="text-4xl font-black text-white mb-2 tracking-wider uppercase text-center">Fim de Jogo!</h2>
+                <p class="text-xl text-yellow-400 mb-8 font-semibold" id="tieBreakerSubtitle">Temos um empate.</p>
+                
+                <!-- Coin View -->
+                <div id="tbCoinView" class="flex-col items-center w-full hidden">
+                    <div class="perspective-1000 w-48 h-48 mb-8 relative mx-auto">
+                        <div id="coinElement" class="w-full h-full relative preserve-3d coin-spin-continuous" style="transform-style: preserve-3d;">
+                            <div class="absolute inset-0 rounded-full bg-green-500 border-4 border-white flex items-center justify-center text-white font-bold text-2xl shadow-[0_0_30px_rgba(34,197,94,0.6)]" style="backface-visibility: hidden;">
+                                <span id="coinSideA" class="truncate px-2 max-w-full text-center">Time A</span>
+                            </div>
+                            <div class="absolute inset-0 rounded-full bg-blue-500 border-4 border-white flex items-center justify-center text-white font-bold text-2xl shadow-[0_0_30px_rgba(59,130,246,0.6)]" style="backface-visibility: hidden; transform: rotateY(180deg);">
+                                <span id="coinSideB" class="truncate px-2 max-w-full text-center">Time B</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="coinResultText" class="text-3xl font-bold text-white mb-4 h-10 text-center"></div>
+                    <button id="btnCoinContinue" class="hidden bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-full text-xl shadow-lg mt-2">Continuar <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                </div>
+
+                <!-- Manual Selection View -->
+                <div id="tbManualView" class="flex-col items-center gap-6 mb-8 w-full px-4 hidden">
+                    <p class="text-white text-center text-lg">Selecione manualmente o vencedor<br><span class="text-sm text-gray-400">(Critério de Primeiro Escanteio)</span></p>
+                    <div class="flex gap-4 w-full justify-center">
+                        <button onclick="resolveManualTie('A')" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg text-lg truncate max-w-[50%]" id="btnManualA">Time A</button>
+                        <button onclick="resolveManualTie('B')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg text-lg truncate max-w-[50%]" id="btnManualB">Time B</button>
+                    </div>
+                </div>
+
+                <!-- Both Leave View -->
+                <div id="tbBothLeaveView" class="flex-col items-center gap-4 mb-8 hidden">
+                    <div class="text-6xl text-gray-400 mb-2"><i class="fa-solid fa-handshake-simple"></i></div>
+                    <p class="text-white text-2xl font-bold text-center">Empate mantido.<br>Os dois times saem!</p>
+                    <button onclick="processMatchResult('BOTH')" class="mt-4 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-full text-xl shadow-lg">Confirmar Saída</button>
+                </div>
+                
+                <div class="flex gap-4">
+                    <button onclick="flipCoin()" id="btnFlipCoin" class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 px-8 rounded-full text-xl transition-transform hover:scale-105 shadow-lg">
+                        Sortear
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 4: Rankings -->
+        <section id="tab-ranking" class="hidden glass-panel rounded-xl p-6 md:p-8 animate-fade-in">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2"><i class="fa-solid fa-trophy text-yellow-500 mr-2"></i> Rankings</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Artilheiros -->
+                <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="bg-green-600 text-white p-3 font-bold text-center flex items-center justify-center gap-2">
+                        <i class="fa-regular fa-futbol"></i> Artilheiros
+                    </div>
+                    <ul id="rankGoals" class="divide-y divide-gray-100 p-2 min-h-[200px]"></ul>
+                </div>
+
+                <!-- Garçons -->
+                <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="bg-blue-600 text-white p-3 font-bold text-center flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-handshake-angle"></i> Garçons
+                    </div>
+                    <ul id="rankAssists" class="divide-y divide-gray-100 p-2 min-h-[200px]"></ul>
+                </div>
+
+                <!-- Campeões -->
+                <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="bg-yellow-500 text-white p-3 font-bold text-center flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-medal"></i> Campeões
+                    </div>
+                    <ul id="rankWins" class="divide-y divide-gray-100 p-2 min-h-[200px]"></ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <!-- Reset Confirm Modal -->
+    <div id="resetModal" class="modal" style="z-index: 100;">
+        <div class="modal-content max-w-sm text-center">
+            <div class="text-4xl text-red-500 mb-4"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h3 class="text-lg font-bold mb-2 text-gray-800">Zerar Sistema</h3>
+            <p class="text-gray-600 mb-6">Tem certeza que deseja apagar todos os participantes, histórico e configurações? Dados serão perdidos.</p>
+            <div class="flex gap-2">
+                <button onclick="closeResetModal()" class="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 font-medium">Cancelar</button>
+                <button onclick="executeReset()" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 font-medium">Sim, Zerar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="importModal" class="modal">
+        <div class="modal-content relative">
+            <span onclick="closeImportModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 cursor-pointer text-xl">&times;</span>
+            <h2 class="text-xl font-bold mb-4">Importar Lista</h2>
+            <p class="text-sm text-gray-600 mb-4">Cole sua lista do WhatsApp. Números e símbolos iniciais serão ignorados. Se houver um número no final de cada linha (ex: - Matheus 5), ele definirá as estrelas.</p>
+            <textarea id="importTextarea" class="w-full h-48 p-3 border rounded-md font-mono text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1. João Silva 4&#10;2. Carlos 3&#10;- Marcos Santos 5"></textarea>
+            
+            <div class="flex items-center gap-3 mb-4 bg-gray-50 p-3 rounded border">
+                <span class="text-sm font-medium text-gray-700">Nível Padrão (se não informado na linha):</span>
+                <div class="star-rating text-lg" id="importRatingInput">
+                    <i class="fa-solid fa-star active" data-rating="1"></i>
+                    <i class="fa-solid fa-star active" data-rating="2"></i>
+                    <i class="fa-solid fa-star active" data-rating="3"></i>
+                    <i class="fa-solid fa-star" data-rating="4"></i>
+                    <i class="fa-solid fa-star" data-rating="5"></i>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2">
+                <button onclick="closeImportModal()" class="px-4 py-2 border rounded-md hover:bg-gray-100 font-medium">Cancelar</button>
+                <button onclick="processImport()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium">Importar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="modal" style="z-index: 100;">
+        <div class="modal-content max-w-sm text-center">
+            <div id="alertIcon" class="text-4xl text-yellow-500 mb-4"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <h3 id="alertTitle" class="text-lg font-bold mb-2">Aviso</h3>
+            <p id="alertMessage" class="text-gray-600 mb-6">Mensagem</p>
+            <button onclick="closeAlert()" class="bg-gray-800 text-white px-6 py-2 rounded-md hover:bg-gray-700 font-medium w-full">OK</button>
+        </div>
+    </div>
+
+    <!-- Roulette Modal -->
+    <div id="rouletteModal" class="modal" style="z-index: 110;">
+        <div class="modal-content text-center flex flex-col items-center bg-white shadow-2xl">
+            <h2 id="rouletteTitle" class="text-xl font-bold mb-6 text-gray-800">Sorteando Substituto...</h2>
+            <div class="relative w-[300px] h-[300px] md:w-[350px] md:h-[350px] mb-4">
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-red-600 z-20 drop-shadow-md"></div>
+                <canvas id="rouletteCanvas" class="w-full h-full rounded-full shadow-[0_0_20px_rgba(0,0,0,0.2)] border-4 border-gray-800"></canvas>
+            </div>
+            <p id="rouletteSubtext" class="text-sm font-semibold text-gray-500 mt-2">Aguarde o sorteio...</p>
+            <button id="btnRouletteClose" class="hidden mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md shadow-md transition-colors">
+                Continuar <i class="fa-solid fa-check ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Player Action Modal -->
+    <div id="playerActionModal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-user-gear text-blue-600"></i> Opções do Jogador</h2>
+            <p class="mb-4 text-gray-700">Jogador: <strong id="actionPlayerNameDisplay"></strong></p>
+            <input type="hidden" id="actionPlayerId">
+            <input type="hidden" id="actionTeamIndex">
+            
+            <div class="space-y-4">
+                <div class="bg-gray-50 p-3 rounded border">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Editar Nível (Estrelas):</label>
+                    <div class="flex items-center gap-3">
+                        <div class="star-rating text-2xl" id="modalStarInput">
+                            <i class="fa-solid fa-star" data-rating="1"></i>
+                            <i class="fa-solid fa-star" data-rating="2"></i>
+                            <i class="fa-solid fa-star" data-rating="3"></i>
+                            <i class="fa-solid fa-star" data-rating="4"></i>
+                            <i class="fa-solid fa-star" data-rating="5"></i>
+                        </div>
+                        <span id="modalRatingDisplay" class="text-lg font-bold text-yellow-600">3</span>
+                    </div>
+                </div>
+
+                <button onclick="executeSubstitute()" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-md hover:bg-red-700 flex items-center justify-center gap-2 transition-colors">
+                    <i class="fa-solid fa-user-slash"></i> Bloquear e Sortear Substituto
+                </button>
+            </div>
+            
+            <div class="flex justify-end mt-6">
+                <button onclick="closePlayerActionModal()" class="px-4 py-2 border rounded-md hover:bg-gray-100 font-medium">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Settings Modal -->
+    <div id="matchSettingsModal" class="modal" style="z-index: 60;">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-gear text-gray-600"></i> Configurações da Partida</h2>
+            
+            <div class="space-y-4">
+                <div class="bg-gray-50 p-3 rounded border">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Duração do Timer (minutos)</label>
+                    <input type="number" id="settingDuration" class="w-full px-3 py-2 border rounded-md" min="1" value="10">
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded border">
+                    <label class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="settingGoalLimitEnabled" checked class="w-4 h-4 text-green-600">
+                        <span class="text-sm font-semibold text-gray-700">Fim de Jogo por Limite de Gols</span>
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-gray-500">Limite de gols:</span>
+                        <input type="number" id="settingGoalLimit" class="w-20 px-3 py-2 border rounded-md" min="1" value="2">
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded border">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Critério de Desempate (Fim do Tempo)</label>
+                    <select id="settingTieBreaker" class="w-full px-3 py-2 border rounded-md" onchange="toggleExtraTimeInput()">
+                        <option value="moeda">Cara ou Coroa (Moeda)</option>
+                        <option value="manual">1º Escanteio (Escolha Manual)</option>
+                        <option value="extratime">Mais X tempo (Prorrogação)</option>
+                        <option value="bothleave">Saem os 2 times</option>
+                        <option value="goldengoal">Primeiro a fazer gol ganha</option>
+                    </select>
+                    
+                    <div id="extraTimeContainer" class="hidden mt-3 pt-3 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tempo Extra (minutos)</label>
+                        <input type="number" id="settingExtraTime" class="w-full px-3 py-2 border rounded-md" min="1" value="3">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="closeMatchSettings()" class="px-4 py-2 border rounded-md hover:bg-gray-100 font-medium">Cancelar</button>
+                <button onclick="saveMatchSettings()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stateHistory = [];
+        let players = []; 
+        let teams = [[], []];   
+        let bench = [];   
+        
+        let matchConfig = {
+            durationMinutes: 10,
+            goalLimitEnabled: true,
+            goalLimit: 2,
+            tieBreaker: 'moeda',
+            extraTimeMinutes: 3
+        };
+        
+        let activeMatch = {
+            teamAIndex: -1,
+            teamBIndex: -1,
+            scoreA: 0,
+            scoreB: 0,
+            timerSeconds: 10 * 60,
+            initialTimerSeconds: 10 * 60,
+            timerInterval: null,
+            isRunning: false,
+            events: [],
+            isGoldenGoalActive: false,
+            isExtraTime: false
+        };
+
+        let currentInputRating = 3;
+        let currentImportRating = 3;
+        let currentModalRating = 3;
+        let idCounter = 1;
+
+        function saveState() {
+            const currentState = {
+                players: JSON.parse(JSON.stringify(players)),
+                teams: JSON.parse(JSON.stringify(teams)),
+                bench: JSON.parse(JSON.stringify(bench)),
+                matchConfig: JSON.parse(JSON.stringify(matchConfig)),
+                idCounter: idCounter,
+                activeMatch: { ...activeMatch, timerInterval: null }
+            };
+            stateHistory.push(JSON.stringify(currentState));
+            if (stateHistory.length > 30) stateHistory.shift();
+        }
+
+        function undoAction() {
+            if (stateHistory.length === 0) {
+                showAlert("Nenhuma ação anterior para desfazer.", "Aviso", "warning");
+                return;
+            }
+            if (activeMatch.isRunning && activeMatch.timerInterval) {
+                clearInterval(activeMatch.timerInterval);
+            }
+
+            const prevState = JSON.parse(stateHistory.pop());
+            players = prevState.players;
+            teams = prevState.teams;
+            bench = prevState.bench;
+            matchConfig = prevState.matchConfig;
+            idCounter = prevState.idCounter;
+            activeMatch = prevState.activeMatch;
+            if (activeMatch.isRunning) activeMatch.isRunning = false;
+
+            saveToLocalStorage();
+            renderPlayersList();
+            renderDraftedTeams();
+            if (activeMatch.teamAIndex !== -1) {
+                updateScoreBoard();
+                updateTimerDisplay();
+                renderMatchRosters();
+            }
+            renderRanking();
+            showAlert("Última ação desfeita com sucesso.", "Desfazer", "success");
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupStarRating('playerRatingInput', (rating) => {
+                currentInputRating = rating;
+                document.getElementById('ratingDisplay').innerText = rating;
+            });
+            setupStarRating('importRatingInput', (rating) => {
+                currentImportRating = rating;
+            });
+            setupStarRating('modalStarInput', (rating) => {
+                currentModalRating = rating;
+                document.getElementById('modalRatingDisplay').innerText = rating;
+                const playerId = parseInt(document.getElementById('actionPlayerId').value);
+                if (playerId) updatePlayerRatingDirect(playerId, rating);
+            });
+            
+            document.getElementById('playerName').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') addPlayer();
+            });
+
+            document.getElementById('playerName').addEventListener('input', function() {
+                const nameVal = this.value.trim().toLowerCase();
+                const errSpan = document.getElementById('nameErrorMsg');
+                if (players.some(p => p.name.toLowerCase() === nameVal)) {
+                    errSpan.classList.remove('hidden');
+                } else {
+                    errSpan.classList.add('hidden');
+                }
+            });
+
+            loadFromLocalStorage();
+            renderPlayersList();
+        });
+
+        function switchTab(tabId) {
+            ['players', 'draft', 'match', 'ranking'].forEach(id => {
+                document.getElementById(`tab-${id}`).classList.add('hidden');
+                document.getElementById(`nav-${id}`).classList.remove('bg-green-800', 'font-semibold');
+                document.getElementById(`nav-${id}`).classList.add('text-green-100');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).classList.add('bg-green-800', 'font-semibold');
+            document.getElementById(`nav-${tabId}`).classList.remove('text-green-100');
+            
+            if (tabId === 'ranking') renderRanking();
+            if (tabId === 'match' || activeMatch.teamAIndex !== -1) {
+                 document.getElementById('nav-match').classList.remove('hidden');
+            }
+        }
+
+        function showAlert(message, title = "Aviso", type = "warning") {
+            document.getElementById('alertTitle').innerText = title;
+            document.getElementById('alertMessage').innerText = message;
+            const iconEl = document.getElementById('alertIcon');
+            if(type === 'error') {
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+            } else if (type === 'success') {
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
+            } else {
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-exclamation text-yellow-500"></i>';
+            }
+            document.getElementById('alertModal').style.display = 'block';
+        }
+
+        function closeAlert() {
+            document.getElementById('alertModal').style.display = 'none';
+        }
+
+        function setupStarRating(containerId, callback) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const stars = container.querySelectorAll('.fa-star');
+            stars.forEach(star => {
+                star.addEventListener('click', () => {
+                    const rating = parseInt(star.getAttribute('data-rating'));
+                    stars.forEach(s => {
+                        if (parseInt(s.getAttribute('data-rating')) <= rating) {
+                            s.classList.add('active');
+                            s.classList.replace('fa-regular', 'fa-solid');
+                        } else {
+                            s.classList.remove('active');
+                            s.classList.replace('fa-solid', 'fa-regular');
+                        }
+                    });
+                    callback(rating);
+                });
+            });
+        }
+
+        function setModalStarsValue(rating) {
+            const container = document.getElementById('modalStarInput');
+            if (!container) return;
+            const stars = container.querySelectorAll('.fa-star');
+            stars.forEach(s => {
+                const r = parseInt(s.getAttribute('data-rating'));
+                if (r <= rating) {
+                    s.classList.add('active');
+                    s.classList.replace('fa-regular', 'fa-solid');
+                } else {
+                    s.classList.remove('active');
+                    s.classList.replace('fa-solid', 'fa-regular');
+                }
+            });
+            document.getElementById('modalRatingDisplay').innerText = rating;
+            currentModalRating = rating;
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('arenaDraft_players', JSON.stringify(players));
+            localStorage.setItem('arenaDraft_matchConfig', JSON.stringify(matchConfig));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('arenaDraft_players');
+            if (saved) {
+                try {
+                    players = JSON.parse(saved);
+                    let maxId = 0;
+                    players.forEach(p => {
+                        if(p.id > maxId) maxId = p.id;
+                        p.goals = p.goals || 0;
+                        p.assists = p.assists || 0;
+                    });
+                    idCounter = maxId + 1;
+                } catch (e) { players = []; }
+            }
+            const savedCfg = localStorage.getItem('arenaDraft_matchConfig');
+            if (savedCfg) {
+                try {
+                    matchConfig = JSON.parse(savedCfg);
+                    activeMatch.timerSeconds = matchConfig.durationMinutes * 60;
+                    activeMatch.initialTimerSeconds = matchConfig.durationMinutes * 60;
+                } catch(e) {}
+            }
+        }
+
+        function addPlayer() {
+            const nameInput = document.getElementById('playerName');
+            let name = nameInput.value.trim();
+            const errSpan = document.getElementById('nameErrorMsg');
+            
+            if (!name) {
+                showAlert("Por favor, digite o nome do jogador.");
+                return;
+            }
+
+            if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                errSpan.classList.remove('hidden');
+                showAlert(`Já existe um participante cadastrado com o nome "${name}".`, "Nome Duplicado", "error");
+                return;
+            }
+            errSpan.classList.add('hidden');
+
+            saveState();
+
+            const newPlayer = {
+                id: idCounter++,
+                name: name,
+                rating: currentInputRating,
+                active: true,
+                goals: 0,
+                assists: 0,
+                wins: 0,
+                gamesPlayed: 0
+            };
+
+            players.push(newPlayer);
+            insertIntoWaitlist(newPlayer);
+
+            nameInput.value = '';
+            nameInput.focus();
+            saveToLocalStorage();
+            renderPlayersList();
+            renderDraftedTeams();
+        }
+
+        function insertIntoWaitlist(newPlayer) {
+            if (teams[0] && teams[0].length > 0) {
+                let targetIdx = -1;
+                for (let i = bench.length - 1; i >= 0; i--) {
+                    if ((bench[i].gamesPlayed || 0) === 0) {
+                        targetIdx = i;
+                        break;
+                    }
+                }
+                if (targetIdx !== -1) {
+                    bench.splice(targetIdx + 1, 0, newPlayer);
+                } else {
+                    bench.unshift(newPlayer);
+                }
+            } else {
+                bench.push(newPlayer);
+            }
+        }
+
+        function togglePlayerStatus(id) {
+            const player = players.find(p => p.id === id);
+            if (player) {
+                saveState();
+                player.active = !player.active;
+                saveToLocalStorage();
+                renderPlayersList();
+            }
+        }
+
+        function removePlayer(id) {
+            saveState();
+            players = players.filter(p => p.id !== id);
+            bench = bench.filter(p => p.id !== id);
+            teams.forEach(team => {
+                const idx = team.findIndex(p => p.id === id);
+                if (idx !== -1) team.splice(idx, 1);
+            });
+            saveToLocalStorage();
+            renderPlayersList();
+            renderDraftedTeams();
+        }
+        
+        function clearAllPlayers() {
+             saveState();
+             players = [];
+             teams = [[], []];
+             bench = [];
+             activeMatch.teamAIndex = -1;
+             saveToLocalStorage();
+             renderPlayersList();
+             renderDraftedTeams();
+        }
+
+        function getStarsHTML(rating) {
+            let html = '';
+            for (let i = 1; i <= 5; i++) {
+                if (i <= rating) {
+                    html += `<i class="fa-solid fa-star text-yellow-400 text-xs"></i>`;
+                } else {
+                    html += `<i class="fa-solid fa-star text-gray-300 text-xs"></i>`;
+                }
+            }
+            return html;
+        }
+
+        function updatePlayerRatingDirect(id, newRating) {
+            const player = players.find(p => p.id === id);
+            if (player) {
+                saveState();
+                player.rating = newRating;
+                saveToLocalStorage();
+                renderPlayersList();
+                renderDraftedTeams();
+                if (activeMatch.teamAIndex !== -1) renderMatchRosters();
+            }
+        }
+
+        function renderPlayersList() {
+            const container = document.getElementById('playersListContainer');
+            const countDisplay = document.getElementById('playerCount');
+            const activeDisplay = document.getElementById('availablePlayersCount');
+            
+            container.innerHTML = '';
+            countDisplay.innerText = players.length;
+            
+            const activeCount = players.filter(p => p.active).length;
+            if(activeDisplay) activeDisplay.innerText = activeCount;
+
+            if (players.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 mt-10 py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300"><i class="fa-regular fa-face-frown-open text-3xl mb-2"></i><br>Nenhum participante.</div>`;
+                return;
+            }
+
+            const sortedPlayers = [...players].sort((a, b) => {
+                if (a.active === b.active) return a.name.localeCompare(b.name);
+                return a.active ? -1 : 1;
+            });
+
+            sortedPlayers.forEach(player => {
+                const item = document.createElement('div');
+                item.className = `flex justify-between items-center p-3 mb-2 rounded-lg border ${player.active ? 'bg-white border-gray-200 shadow-sm' : 'bg-gray-100 border-gray-200 opacity-60'}`;
+                
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 cursor-pointer flex-grow" onclick="openPlayerActionModal(${player.id}, 0)">
+                        <div class="${player.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'} w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                            ${player.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-800 hover:text-blue-600 transition-colors ${!player.active && 'line-through decoration-gray-400'}">${player.name} <i class="fa-solid fa-pen text-xs text-gray-400 ml-1"></i></div>
+                            <div class="flex">${getStarsHTML(player.rating)}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="togglePlayerStatus(${player.id})" class="p-2 rounded-md ${player.active ? 'text-orange-500 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'} transition-colors" title="${player.active ? 'Bloquear/Ausente' : 'Ativar/Presente'}">
+                            <i class="fa-solid ${player.active ? 'fa-ban' : 'fa-check'}"></i>
+                        </button>
+                        <button onclick="removePlayer(${player.id})" class="p-2 rounded-md text-red-500 hover:bg-red-50 transition-colors" title="Remover">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function openImportModal() {
+            document.getElementById('importTextarea').value = '';
+            document.getElementById('importModal').style.display = 'block';
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').style.display = 'none';
+        }
+
+        function processImport() {
+            const text = document.getElementById('importTextarea').value;
+            if (!text.trim()) {
+                closeImportModal();
+                return;
+            }
+            
+            saveState();
+            const lines = text.split('\n');
+            let addedCount = 0;
+            let duplicates = 0;
+
+            lines.forEach(line => {
+                let cleanLine = line.replace(/^[0-9.\-\s*]+/, '').trim();
+                if (cleanLine.length < 2) return;
+
+                let rating = currentImportRating;
+                const parts = cleanLine.split(/\s+/);
+                const lastPart = parts[parts.length - 1];
+                if (/^[1-5]$/.test(lastPart) && parts.length > 1) {
+                    rating = parseInt(lastPart);
+                    parts.pop();
+                    cleanLine = parts.join(' ');
+                }
+
+                if (players.some(p => p.name.toLowerCase() === cleanLine.toLowerCase())) {
+                    duplicates++;
+                    return;
+                }
+
+                const newPlayer = {
+                    id: idCounter++,
+                    name: cleanLine,
+                    rating: rating,
+                    active: true,
+                    goals: 0,
+                    assists: 0,
+                    wins: 0,
+                    gamesPlayed: 0
+                };
+                players.push(newPlayer);
+                insertIntoWaitlist(newPlayer);
+                addedCount++;
+            });
+
+            saveToLocalStorage();
+            renderPlayersList();
+            renderDraftedTeams();
+            closeImportModal();
+            
+            let msg = `${addedCount} participantes importados com sucesso!`;
+            if (duplicates > 0) msg += ` (${duplicates} ignorados por nome duplicado)`;
+            showAlert(msg, "Importação Concluída", "success");
+        }
+
+        function toggleDraftSettings() {
+            const panel = document.getElementById('draftSettingsPanel');
+            panel.classList.toggle('hidden');
+            panel.classList.toggle('flex');
+        }
+
+        function draftTeams() {
+            const activePlayers = players.filter(p => p.active);
+            const k = parseInt(document.getElementById('playersPerTeam').value) || 7;
+
+            if (isNaN(k) || k < 2) {
+                showAlert("Defina um número válido de jogadores por time (mínimo 2).");
+                return;
+            }
+
+            if (activePlayers.length < k * 2) {
+                showAlert(`Você precisa de pelo menos ${k * 2} participantes ativos para formar os dois times de ${k}. Atualmente tem ${activePlayers.length}.`);
+                return;
+            }
+            
+            saveState();
+
+            activePlayers.sort((a, b) => {
+                if (b.rating === a.rating) return Math.random() - 0.5;
+                return b.rating - a.rating;
+            });
+
+            let teamA = [];
+            let teamB = [];
+            let totalNeeded = k * 2;
+            let poolForMatch = activePlayers.slice(0, totalNeeded);
+            let remaining = activePlayers.slice(totalNeeded);
+
+            poolForMatch.forEach((p, idx) => {
+                let selector = Math.floor(idx / k) % 2 === 0 ? (idx % 2 === 0 ? 0 : 1) : (idx % 2 === 0 ? 1 : 0);
+                if (selector === 0) {
+                    if (teamA.length < k) teamA.push(p);
+                    else teamB.push(p);
+                } else {
+                    if (teamB.length < k) teamB.push(p);
+                    else teamA.push(p);
+                }
+            });
+
+            teams = [teamA, teamB];
+            bench = remaining;
+
+            document.getElementById('draftSettingsPanel').classList.add('hidden');
+            document.getElementById('draftSettingsPanel').classList.remove('flex');
+
+            renderDraftedTeams();
+
+            if (teams[0].length > 0 && teams[1].length > 0) {
+                startMatchSilently();
+            }
+        }
+
+        function startMatchSilently() {
+            const startSeconds = matchConfig.durationMinutes * 60;
+            activeMatch = {
+                teamAIndex: 0,
+                teamBIndex: 1,
+                scoreA: 0,
+                scoreB: 0,
+                timerSeconds: startSeconds,
+                initialTimerSeconds: startSeconds,
+                timerInterval: null,
+                isRunning: false,
+                events: [],
+                isGoldenGoalActive: false,
+                isExtraTime: false
+            };
+
+            teams[0].forEach(p => { p.matchGoals = 0; p.matchAssists = 0; });
+            teams[1].forEach(p => { p.matchGoals = 0; p.matchAssists = 0; });
+
+            document.getElementById('matchTeamAName').innerText = `Time 1`;
+            document.getElementById('matchTeamBName').innerText = `Time 2`;
+            document.getElementById('labelTeamA').innerText = `Time 1`;
+            document.getElementById('labelTeamB').innerText = `Time 2`;
+            
+            updateScoreBoard();
+            updateTimerDisplay();
+            renderMatchRosters();
+            document.getElementById('nav-match').classList.remove('hidden');
+        }
+
+        function renderDraftedTeams() {
+            const container = document.getElementById('teamsContainer');
+            container.innerHTML = '';
+            
+            const colors = ['border-blue-500', 'border-red-500'];
+            const headerColors = ['bg-blue-600', 'bg-red-600'];
+
+            [0, 1].forEach((index) => {
+                const team = teams[index];
+                if (!team || team.length === 0) return;
+
+                const totalStars = team.reduce((sum, p) => sum + p.rating, 0);
+                const avgStars = (totalStars / team.length).toFixed(1);
+                
+                const teamCard = document.createElement('div');
+                teamCard.className = `bg-white rounded-xl shadow-md border-t-4 ${colors[index]} overflow-hidden flex flex-col h-full`;
+                
+                let html = `
+                    <div class="${headerColors[index]} text-white p-3 font-bold flex justify-between items-center shadow-sm">
+                        <span>Time ${index + 1}</span>
+                        <div class="text-xs bg-black/20 px-2 py-1 rounded-full flex gap-2">
+                            <span><i class="fa-solid fa-star text-yellow-300"></i> ${avgStars} avg</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow p-4">
+                        <ul class="divide-y divide-gray-100">
+                `;
+
+                team.forEach((player) => {
+                    html += `
+                        <li class="py-2 flex justify-between items-center group cursor-pointer" onclick="openPlayerActionModal(${player.id}, ${index})">
+                            <div class="flex flex-col">
+                                <span class="font-medium text-gray-800">${player.name} <i class="fa-solid fa-gear text-xs text-gray-400 opacity-0 group-hover:opacity-100"></i></span>
+                                <div class="flex">${getStarsHTML(player.rating)}</div>
+                            </div>
+                            <span class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity" title="Bloquear e Substituir">
+                                <i class="fa-solid fa-user-slash"></i>
+                            </span>
+                        </li>
+                    `;
+                });
+
+                html += `</ul></div><div class="bg-gray-50 p-2 text-center text-xs text-gray-500 border-t">${team.length} Jogadores | Nível Total: ${totalStars}</div>`;
+                teamCard.innerHTML = html;
+                container.appendChild(teamCard);
+            });
+            
+            const waitlistContainer = document.getElementById('waitlistContainer');
+            const waitlistList = document.getElementById('waitlistList');
+            const k = parseInt(document.getElementById('playersPerTeam').value) || 7;
+            
+            if (bench.length > 0) {
+                waitlistContainer.classList.remove('hidden');
+                document.getElementById('waitlistCount').innerText = bench.length;
+                
+                let html = '';
+                bench.forEach((p, index) => {
+                    const isNextTeam = index < k;
+                    const games = p.gamesPlayed || 0;
+                    html += `
+                        <div class="flex justify-between items-center p-3 rounded-lg border ${isNextTeam ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-white border-gray-200'}">
+                            <div class="flex items-center gap-3">
+                                <span class="font-bold ${isNextTeam ? 'text-blue-600' : 'text-gray-400'} w-6 text-right">${index + 1}º</span>
+                                <div>
+                                    <span class="font-medium text-gray-800">${p.name}</span>
+                                    <div class="text-xs ${games === 0 ? 'text-green-600 font-bold' : 'text-gray-500'}">${games} partidas</div>
+                                </div>
+                            </div>
+                            <div class="flex">${getStarsHTML(p.rating)}</div>
+                        </div>
+                    `;
+                });
+                waitlistList.innerHTML = html;
+            } else {
+                waitlistContainer.classList.add('hidden');
+            }
+        }
+
+        function openPlayerActionModal(playerId, currentTeamIndex) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            document.getElementById('actionPlayerNameDisplay').innerText = player.name;
+            document.getElementById('actionPlayerId').value = playerId;
+            document.getElementById('actionTeamIndex').value = currentTeamIndex;
+            setModalStarsValue(player.rating);
+
+            document.getElementById('playerActionModal').style.display = 'block';
+        }
+
+        function closePlayerActionModal() {
+            document.getElementById('playerActionModal').style.display = 'none';
+        }
+
+        let rouletteAnimId;
+        function openRouletteAndSpin(title, candidates, winnerIndex, onComplete) {
+            document.getElementById('rouletteTitle').innerText = title;
+            document.getElementById('rouletteSubtext').innerText = "Girando...";
+            document.getElementById('rouletteSubtext').classList.remove('text-green-600');
+            document.getElementById('rouletteSubtext').classList.add('text-gray-500');
+            document.getElementById('rouletteModal').style.display = 'block';
+            
+            const canvas = document.getElementById('rouletteCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 400;
+            canvas.height = 400;
+            const centerX = 200, centerY = 200;
+            const radius = 190;
+            const numSegments = candidates.length;
+            const arcSize = (2 * Math.PI) / numSegments;
+            const colors = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
+
+            let currentAngle = 0;
+            let spinDuration = 3500; 
+            let startTime = null;
+
+            const extraSpins = 6 * 2 * Math.PI;
+            const winnerStart = winnerIndex * arcSize;
+            const winnerMiddle = winnerStart + (arcSize / 2);
+            const targetRotation = extraSpins + ((3 * Math.PI) / 2) - winnerMiddle;
+
+            function drawWheel(angle) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < numSegments; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.arc(centerX, centerY, radius, angle + i * arcSize, angle + (i + 1) * arcSize);
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(angle + i * arcSize + arcSize / 2);
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 18px Inter, sans-serif';
+                    let name = candidates[i].name;
+                    if(name.length > 12) name = name.substring(0, 10) + '...';
+                    ctx.fillText(name, radius - 20, 6);
+                    ctx.restore();
+                }
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 15, 0, 2*Math.PI);
+                ctx.fillStyle = '#1f2937';
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+            }
+
+            function animate(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+                let progress = elapsed / spinDuration;
+                if (progress > 1) progress = 1;
+                
+                const easeOut = 1 - Math.pow(1 - progress, 4); 
+                currentAngle = targetRotation * easeOut;
+                drawWheel(currentAngle);
+
+                if (progress < 1) {
+                    rouletteAnimId = requestAnimationFrame(animate);
+                } else {
+                    document.getElementById('rouletteSubtext').innerText = "Vencedor: " + candidates[winnerIndex].name;
+                    document.getElementById('rouletteSubtext').classList.replace('text-gray-500', 'text-green-600');
+                    
+                    const btnClose = document.getElementById('btnRouletteClose');
+                    btnClose.classList.remove('hidden');
+                    btnClose.onclick = () => {
+                        document.getElementById('rouletteModal').style.display = 'none';
+                        btnClose.classList.add('hidden');
+                        onComplete();
+                    };
+                }
+            }
+            
+            if (rouletteAnimId) cancelAnimationFrame(rouletteAnimId);
+            drawWheel(0);
+            rouletteAnimId = requestAnimationFrame(animate);
+        }
+
+        function executeSubstitute() {
+            const playerId = parseInt(document.getElementById('actionPlayerId').value);
+            const teamIndex = parseInt(document.getElementById('actionTeamIndex').value);
+            closePlayerActionModal();
+
+            let eligibleBench = bench.filter(p => (p.gamesPlayed || 0) === 0 && p.active);
+            if (eligibleBench.length === 0) {
+                const k = parseInt(document.getElementById('playersPerTeam').value) || 7;
+                eligibleBench = bench.slice(0, k).filter(p => p.active);
+            }
+            if (eligibleBench.length === 0) {
+                eligibleBench = bench.filter(p => p.active);
+            }
+
+            if (eligibleBench.length === 0) {
+                showAlert("Não há substitutos disponíveis no banco!", "Aviso", "warning");
+                return;
+            }
+
+            const globalPlayer = players.find(p => p.id === playerId);
+            const winnerIndex = Math.floor(Math.random() * eligibleBench.length);
+            const sub = eligibleBench[winnerIndex];
+
+            openRouletteAndSpin(`Substituto para ${globalPlayer ? globalPlayer.name : 'Jogador'}`, eligibleBench, winnerIndex, () => {
+                saveState();
+                if(globalPlayer) globalPlayer.active = false;
+                saveToLocalStorage();
+
+                const teamPlayerIdx = teams[teamIndex].findIndex(p => p.id === playerId);
+                if (teamPlayerIdx !== -1) teams[teamIndex].splice(teamPlayerIdx, 1);
+
+                const subIndex = bench.findIndex(p => p.id === sub.id);
+                if (subIndex !== -1) bench.splice(subIndex, 1);
+
+                teams[teamIndex].push(sub);
+                
+                if(globalPlayer) {
+                    showAlert(`${globalPlayer.name} foi substituído por: ${sub.name}`, "Substituição Concluída", "success");
+                }
+
+                renderPlayersList();
+                renderDraftedTeams();
+                if (activeMatch.teamAIndex !== -1) renderMatchRosters();
+            });
+        }
+
+        function openMatchSettings() {
+            document.getElementById('settingDuration').value = matchConfig.durationMinutes;
+            document.getElementById('settingGoalLimitEnabled').checked = matchConfig.goalLimitEnabled;
+            document.getElementById('settingGoalLimit').value = matchConfig.goalLimit;
+            document.getElementById('settingTieBreaker').value = matchConfig.tieBreaker;
+            document.getElementById('settingExtraTime').value = matchConfig.extraTimeMinutes;
+            
+            toggleExtraTimeInput();
+            document.getElementById('matchSettingsModal').style.display = 'block';
+        }
+
+        function closeMatchSettings() {
+            document.getElementById('matchSettingsModal').style.display = 'none';
+        }
+
+        function toggleExtraTimeInput() {
+            const tieBreaker = document.getElementById('settingTieBreaker').value;
+            const container = document.getElementById('extraTimeContainer');
+            if (tieBreaker === 'extratime') container.classList.remove('hidden');
+            else container.classList.add('hidden');
+        }
+
+        function saveMatchSettings() {
+            saveState();
+            matchConfig.durationMinutes = parseInt(document.getElementById('settingDuration').value) || 10;
+            matchConfig.goalLimitEnabled = document.getElementById('settingGoalLimitEnabled').checked;
+            matchConfig.goalLimit = parseInt(document.getElementById('settingGoalLimit').value) || 2;
+            matchConfig.tieBreaker = document.getElementById('settingTieBreaker').value;
+            matchConfig.extraTimeMinutes = parseInt(document.getElementById('settingExtraTime').value) || 3;
+            
+            if (!activeMatch.isRunning && activeMatch.timerSeconds === activeMatch.initialTimerSeconds) {
+                activeMatch.initialTimerSeconds = matchConfig.durationMinutes * 60;
+                activeMatch.timerSeconds = activeMatch.initialTimerSeconds;
+                updateTimerDisplay();
+            }
+            saveToLocalStorage();
+            closeMatchSettings();
+        }
+
+        function playBuzzerSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                for (let i = 0; i < 3; i++) {
+                    const startTime = audioCtx.currentTime + (i * 0.3);
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(650, startTime);
+                    
+                    gain.gain.setValueAtTime(0.5, startTime);
+                    gain.gain.setValueAtTime(0.01, startTime + 0.22);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.25);
+                }
+            } catch(e) {}
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('matchTimer');
+            display.innerText = formatTime(activeMatch.timerSeconds);
+            if (activeMatch.timerSeconds <= 60 && activeMatch.timerSeconds > 0) {
+                display.classList.add('text-red-500');
+                display.classList.remove('text-yellow-400');
+            } else {
+                display.classList.remove('text-red-500');
+                display.classList.add('text-yellow-400');
+            }
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('btnTimerToggle');
+            if (activeMatch.isRunning) {
+                clearInterval(activeMatch.timerInterval);
+                activeMatch.isRunning = false;
+                btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                btn.classList.replace('bg-orange-500', 'bg-blue-600');
+            } else {
+                if (activeMatch.timerSeconds === 0) return;
+                activeMatch.isRunning = true;
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                btn.classList.replace('bg-blue-600', 'bg-orange-500');
+                
+                activeMatch.timerInterval = setInterval(() => {
+                    activeMatch.timerSeconds--;
+                    updateTimerDisplay();
+                    if (activeMatch.timerSeconds <= 0) {
+                        playBuzzerSound();
+                        handleMatchEnd();
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            if (activeMatch.isRunning) toggleTimer();
+            activeMatch.timerSeconds = activeMatch.initialTimerSeconds;
+            updateTimerDisplay();
+        }
+
+        function updateScoreBoard() {
+            document.getElementById('scoreTeamA').innerText = activeMatch.scoreA;
+            document.getElementById('scoreTeamB').innerText = activeMatch.scoreB;
+        }
+
+        function addGoal(teamLetter, playerId) {
+            saveState();
+            let teamIndex = teamLetter === 'A' ? activeMatch.teamAIndex : activeMatch.teamBIndex;
+            if (teamLetter === 'A') activeMatch.scoreA++;
+            else activeMatch.scoreB++;
+
+            const player = teams[teamIndex].find(p => p.id === playerId);
+            if (player) {
+                player.matchGoals = (player.matchGoals || 0) + 1;
+                const gp = players.find(p => p.id === playerId);
+                if(gp) {
+                    gp.goals = (gp.goals || 0) + 1;
+                    saveToLocalStorage();
+                }
+            }
+
+            updateScoreBoard();
+            renderMatchRosters();
+
+            if (activeMatch.isGoldenGoalActive) {
+                const winnerName = teamLetter === 'A' ? document.getElementById('matchTeamAName').innerText : document.getElementById('matchTeamBName').innerText;
+                showAlert(`Gol de Ouro! O ${winnerName} venceu!`, "Fim de Jogo", "success");
+                if (activeMatch.isRunning) toggleTimer();
+                return;
+            }
+
+            if (matchConfig.goalLimitEnabled) {
+                if (activeMatch.scoreA >= matchConfig.goalLimit || activeMatch.scoreB >= matchConfig.goalLimit) {
+                    handleMatchEnd(true);
+                }
+            }
+        }
+
+        function addAssist(teamLetter, playerId) {
+            saveState();
+            let teamIndex = teamLetter === 'A' ? activeMatch.teamAIndex : activeMatch.teamBIndex;
+            const player = teams[teamIndex].find(p => p.id === playerId);
+            if (player) {
+                player.matchAssists = (player.matchAssists || 0) + 1;
+                const gp = players.find(p => p.id === playerId);
+                if(gp) {
+                    gp.assists = (gp.assists || 0) + 1;
+                    saveToLocalStorage();
+                }
+            }
+            renderMatchRosters();
+        }
+
+        function renderMatchRosters() {
+            const containerA = document.getElementById('matchRosterTeamA');
+            const containerB = document.getElementById('matchRosterTeamB');
+            
+            const buildRosterHTML = (teamIndex, teamLetter) => {
+                if (teamIndex === -1 || !teams[teamIndex]) return '';
+                let html = '';
+                teams[teamIndex].forEach(player => {
+                    const goalsStr = player.matchGoals ? `<span class="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full"><i class="fa-regular fa-futbol"></i> ${player.matchGoals}</span>` : '';
+                    const assistsStr = player.matchAssists ? `<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full"><i class="fa-solid fa-handshake-angle"></i> ${player.matchAssists}</span>` : '';
+                    
+                    html += `
+                        <div class="flex justify-between items-center p-2 mb-2 border-b border-gray-100 hover:bg-gray-50 group">
+                            <div class="flex flex-col flex-grow cursor-pointer" onclick="openPlayerActionModal(${player.id}, ${teamIndex})">
+                                <span class="font-medium text-gray-800 group-hover:text-blue-600 transition-colors">${player.name}</span>
+                                <div class="flex gap-1 mt-1 h-5">${goalsStr}${assistsStr}</div>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="addGoal('${teamLetter}', ${player.id})" class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center hover:bg-green-600 transition-colors shadow-sm" title="Gol"><i class="fa-regular fa-futbol"></i></button>
+                                <button onclick="addAssist('${teamLetter}', ${player.id})" class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition-colors shadow-sm text-sm" title="Assistência"><i class="fa-solid fa-a"></i></button>
+                            </div>
+                        </div>
+                    `;
+                });
+                return html;
+            };
+
+            containerA.innerHTML = buildRosterHTML(activeMatch.teamAIndex, 'A');
+            containerB.innerHTML = buildRosterHTML(activeMatch.teamBIndex, 'B');
+        }
+
+        function handleMatchEnd(endedByGoal = false) {
+            if (activeMatch.isRunning) toggleTimer();
+            
+            if (activeMatch.scoreA === activeMatch.scoreB && !endedByGoal) {
+                switch(matchConfig.tieBreaker) {
+                    case 'extratime':
+                        if (activeMatch.isExtraTime) {
+                            showAlert(`Fim da prorrogação com empate, desempate na moeda.`, "Fim de Jogo", "warning");
+                            showTieBreaker('moeda');
+                        } else {
+                            activeMatch.isExtraTime = true;
+                            activeMatch.timerSeconds = matchConfig.extraTimeMinutes * 60;
+                            updateTimerDisplay();
+                            showAlert(`Tempo esgotado! +${matchConfig.extraTimeMinutes} min de prorrogação.`, "Tempo Extra", "warning");
+                        }
+                        break;
+                    case 'goldengoal':
+                        activeMatch.isGoldenGoalActive = true;
+                        activeMatch.timerSeconds = 99 * 60;
+                        updateTimerDisplay();
+                        showAlert(`Tempo Esgotado! Gol de Ouro ativado!`, "Gol de Ouro", "warning");
+                        break;
+                    case 'manual':
+                        showTieBreaker('manual');
+                        break;
+                    case 'bothleave':
+                        showTieBreaker('bothleave');
+                        break;
+                    case 'moeda':
+                    default:
+                        showTieBreaker('moeda');
+                        break;
+                }
+            } else {
+                const winnerLetter = activeMatch.scoreA > activeMatch.scoreB ? 'A' : 'B';
+                const winnerName = winnerLetter === 'A' ? document.getElementById('matchTeamAName').innerText : document.getElementById('matchTeamBName').innerText;
+                const reason = endedByGoal ? "Limite de gols atingido!" : "Tempo esgotado!";
+                showAlert(`${reason} O ${winnerName} venceu!`, "Fim de Jogo", "success");
+                setTimeout(() => processMatchResult(winnerLetter), 2500);
+            }
+        }
+
+        function showTieBreaker(mode) {
+            document.getElementById('tieBreakerOverlay').classList.remove('hidden');
+            document.getElementById('tbCoinView').classList.add('hidden');
+            document.getElementById('tbCoinView').classList.remove('flex');
+            document.getElementById('tbManualView').classList.add('hidden');
+            document.getElementById('tbManualView').classList.remove('flex');
+            document.getElementById('tbBothLeaveView').classList.add('hidden');
+            document.getElementById('tbBothLeaveView').classList.remove('flex');
+            document.getElementById('btnFlipCoin').classList.remove('hidden');
+            document.getElementById('tieBreakerSubtitle').classList.remove('hidden');
+
+            if (mode === 'moeda') {
+                document.getElementById('tbCoinView').classList.remove('hidden');
+                document.getElementById('tbCoinView').classList.add('flex');
+                document.getElementById('btnCoinContinue').classList.add('hidden');
+                document.getElementById('coinSideA').innerText = document.getElementById('matchTeamAName').innerText;
+                document.getElementById('coinSideB').innerText = document.getElementById('matchTeamBName').innerText;
+                document.getElementById('coinResultText').innerText = "";
+                
+                const coin = document.getElementById('coinElement');
+                coin.classList.add('coin-spin-continuous');
+                coin.style.transform = '';
+            } else if (mode === 'manual') {
+                document.getElementById('tbManualView').classList.remove('hidden');
+                document.getElementById('tbManualView').classList.add('flex');
+                document.getElementById('btnManualA').innerText = document.getElementById('matchTeamAName').innerText;
+                document.getElementById('btnManualB').innerText = document.getElementById('matchTeamBName').innerText;
+            } else if (mode === 'bothleave') {
+                document.getElementById('tbBothLeaveView').classList.remove('hidden');
+                document.getElementById('tbBothLeaveView').classList.add('flex');
+                document.getElementById('tieBreakerSubtitle').classList.add('hidden');
+            }
+        }
+
+        function resolveManualTie(teamLetter) {
+            saveState();
+            const winner = teamLetter === 'A' ? document.getElementById('matchTeamAName').innerText : document.getElementById('matchTeamBName').innerText;
+            showAlert(`O ${winner} foi definido como vencedor!`, "Desempate", "success");
+            processMatchResult(teamLetter);
+        }
+
+        function flipCoin() {
+            saveState();
+            const coin = document.getElementById('coinElement');
+            coin.classList.remove('coin-spin-continuous');
+            
+            const result = Math.floor(Math.random() * 2);
+            const finalRotation = 1800 + (result * 180);
+            coin.style.transform = `rotateY(${finalRotation}deg)`;
+            coin.style.transition = 'transform 2s cubic-bezier(0.2, 0.8, 0.3, 1)';
+
+            setTimeout(() => {
+                const winnerLetter = result === 0 ? 'A' : 'B';
+                const winnerName = result === 0 ? document.getElementById('matchTeamAName').innerText : document.getElementById('matchTeamBName').innerText;
+                document.getElementById('coinResultText').innerHTML = `Vencedor: <span class="text-yellow-400">${winnerName}</span>`;
+                document.getElementById('btnFlipCoin').classList.add('hidden');
+                
+                const btnContinue = document.getElementById('btnCoinContinue');
+                btnContinue.classList.remove('hidden');
+                btnContinue.onclick = () => {
+                    btnContinue.classList.add('hidden');
+                    processMatchResult(winnerLetter);
+                };
+            }, 2100);
+        }
+        
+        function processMatchResult(winnerLetter) {
+            document.getElementById('tieBreakerOverlay').classList.add('hidden');
+            saveState();
+            
+            [0, 1].forEach(tIdx => {
+                if (teams[tIdx]) {
+                    teams[tIdx].forEach(p => {
+                        const gp = players.find(x => x.id === p.id);
+                        if (gp) gp.gamesPlayed = (gp.gamesPlayed || 0) + 1;
+                        p.gamesPlayed = (p.gamesPlayed || 0) + 1;
+                    });
+                }
+            });
+            
+            const k = parseInt(document.getElementById('playersPerTeam').value) || 7;
+            
+            if (winnerLetter === 'A') {
+                teams[0].forEach(p => { const gp = players.find(x => x.id === p.id); if(gp) gp.wins = (gp.wins || 0) + 1; });
+                bench.push(...teams[1]);
+                teams[1] = bench.splice(0, Math.min(k, bench.length));
+            } else if (winnerLetter === 'B') {
+                teams[1].forEach(p => { const gp = players.find(x => x.id === p.id); if(gp) gp.wins = (gp.wins || 0) + 1; });
+                bench.push(...teams[0]);
+                teams[0] = bench.splice(0, Math.min(k, bench.length));
+            } else if (winnerLetter === 'BOTH') {
+                bench.push(...teams[0]);
+                bench.push(...teams[1]);
+                teams[0] = bench.splice(0, Math.min(k, bench.length));
+                teams[1] = bench.splice(0, Math.min(k, bench.length));
+            }
+
+            saveToLocalStorage();
+            startNextMatchQueue();
+        }
+
+        function startNextMatchQueue() {
+            activeMatch.scoreA = 0;
+            activeMatch.scoreB = 0;
+            activeMatch.timerSeconds = activeMatch.initialTimerSeconds;
+            activeMatch.isGoldenGoalActive = false;
+            activeMatch.isExtraTime = false;
+            
+            if (activeMatch.isRunning) toggleTimer();
+
+            if(teams[0]) teams[0].forEach(p => { p.matchGoals = 0; p.matchAssists = 0; });
+            if(teams[1]) teams[1].forEach(p => { p.matchGoals = 0; p.matchAssists = 0; });
+
+            updateScoreBoard();
+            updateTimerDisplay();
+            renderMatchRosters();
+            renderDraftedTeams();
+            
+            showAlert("Fila atualizada! Próxima partida pronta.", "Rodízio Concluído", "success");
+        }
+        
+        function renderRanking() {
+            const getHtmlWithTies = (arr, valKey, icon, color) => {
+                let lastVal = -1;
+                let lastPos = 0;
+                return arr.map((p, i) => {
+                    const val = p[valKey];
+                    let pos = i + 1;
+                    if (val === lastVal) {
+                        pos = lastPos;
+                    } else {
+                        lastVal = val;
+                        lastPos = pos;
+                    }
+                    return `
+                        <li class="flex justify-between items-center p-3 hover:bg-gray-50 border-b last:border-0">
+                            <div class="flex items-center gap-3">
+                                <span class="font-bold text-gray-400 w-5">${pos}º</span>
+                                <span class="font-medium text-gray-800">${p.name}</span>
+                            </div>
+                            <span class="font-bold text-${color}-600 bg-${color}-50 px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-${color}-100">
+                                <i class="${icon}"></i> ${val}
+                            </span>
+                        </li>
+                    `;
+                }).join('');
+            };
+
+            const topGoals = [...players].filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals).slice(0, 10);
+            document.getElementById('rankGoals').innerHTML = topGoals.length ? getHtmlWithTies(topGoals, 'goals', 'fa-regular fa-futbol', 'green') : '<li class="p-4 text-center text-gray-500 text-sm italic">Nenhum gol registrado</li>';
+
+            const topAssists = [...players].filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists).slice(0, 10);
+            document.getElementById('rankAssists').innerHTML = topAssists.length ? getHtmlWithTies(topAssists, 'assists', 'fa-solid fa-handshake-angle', 'blue') : '<li class="p-4 text-center text-gray-500 text-sm italic">Nenhuma assistência registrada</li>';
+
+            const topWins = [...players].filter(p => (p.wins || 0) > 0).sort((a, b) => (b.wins || 0) - (a.wins || 0)).slice(0, 10);
+            document.getElementById('rankWins').innerHTML = topWins.length ? getHtmlWithTies(topWins, 'wins', 'fa-solid fa-medal', 'yellow') : '<li class="p-4 text-center text-gray-500 text-sm italic">Nenhuma vitória registrada</li>';
+        }
+
+        function openResetModal() {
+            document.getElementById('resetModal').style.display = 'block';
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetModal').style.display = 'none';
+        }
+
+        function executeReset() {
+            closeResetModal();
+            localStorage.clear();
+            players = [];
+            teams = [[], []];
+            bench = [];
+            activeMatch = {
+                teamAIndex: -1, teamBIndex: -1, scoreA: 0, scoreB: 0,
+                timerSeconds: 600, initialTimerSeconds: 600, timerInterval: null,
+                isRunning: false, events: [], isGoldenGoalActive: false, isExtraTime: false
+            };
+            idCounter = 1;
+            stateHistory = [];
+            matchConfig = {
+                durationMinutes: 10,
+                goalLimitEnabled: true,
+                goalLimit: 2,
+                tieBreaker: 'moeda',
+                extraTimeMinutes: 3
+            };
+            
+            renderPlayersList();
+            renderDraftedTeams();
+            renderRanking();
+            switchTab('players');
+            document.getElementById('nav-match').classList.add('hidden');
+            showAlert("Sistema zerado com sucesso.", "Reset", "success");
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('importModal')) closeImportModal();
+            if (event.target == document.getElementById('alertModal')) closeAlert();
+            if (event.target == document.getElementById('playerActionModal')) closePlayerActionModal();
+            if (event.target == document.getElementById('matchSettingsModal')) closeMatchSettings();
+            if (event.target == document.getElementById('resetModal')) closeResetModal();
+        }
+    </script>
+</body>
+</html>
