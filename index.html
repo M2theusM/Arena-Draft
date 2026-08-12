@@ -29,13 +29,14 @@
 
     <!-- Top Header -->
     <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-3 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shadow-md">
-        <div class="flex items-center space-x-2">
+        <!-- Logo Clicável -->
+        <div class="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition" onclick="switchTab('match')" title="Ir para Partida Ativa">
             <div class="bg-emerald-500 text-slate-950 p-2 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10">
                 <i class="fa-solid fa-futbol"></i>
             </div>
             <div>
                 <h1 class="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">FutHub</h1>
-                <p class="text-[10px] sm:text-xs text-emerald-400 font-medium">Gestão de Elenco & Partidas V:0.5</p>
+                <p class="text-[10px] sm:text-xs text-emerald-400 font-medium">Gestão de Elenco & Partidas V:1.0</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -147,14 +148,20 @@
                         <h2 class="text-sm sm:text-base font-bold text-white flex items-center space-x-2">
                             <span>Formação de Times & Fila</span>
                         </h2>
-                        <p class="text-xs text-slate-400">Sorteia a quantidade **exata** por time. A sobra vai para o banco.</p>
+                        <p class="text-xs text-slate-400">Sorteia a quantidade exata por time. A sobra vai para o banco.</p>
                     </div>
                     <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
-                        <div class="flex items-center space-x-2">
-                            <label class="text-xs text-slate-300 whitespace-nowrap">Jog./Time:</label>
-                            <input type="number" id="team-size-input" min="3" max="11" value="7" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-center text-white focus:outline-none focus:border-emerald-500">
-                        </div>
-                        <div id="draft-trigger-container">
+                        <!-- Ícone de Engrenagem (Aparece após o primeiro sorteio) -->
+                        <button onclick="document.getElementById('draft-controls').classList.toggle('hidden')" id="btn-draft-gear" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg text-sm transition" title="Configurações de Sorteio">
+                            <i class="fa-solid fa-gear"></i>
+                        </button>
+                        
+                        <!-- Controles de Sorteio -->
+                        <div id="draft-controls" class="flex items-center space-x-2 transition-all">
+                            <div class="flex items-center space-x-2">
+                                <label class="text-xs text-slate-300 whitespace-nowrap">Jog./Time:</label>
+                                <input type="number" id="team-size-input" min="3" max="11" value="7" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-center text-white focus:outline-none focus:border-emerald-500">
+                            </div>
                             <button onclick="executeDraft()" id="btn-execute-draft" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm shadow-md transition active:scale-95 flex items-center space-x-1.5">
                                 <i class="fa-solid fa-shuffle"></i>
                                 <span>Sortear Times</span>
@@ -405,7 +412,7 @@
             state.playing = last.playing; state.teamsQueue = last.teamsQueue; state.bench = last.bench; state.teamCounter = last.teamCounter;
             state.match.scoreA = last.match.scoreA; state.match.scoreB = last.match.scoreB;
             state.match.timerSeconds = last.match.timerSeconds; state.match.hasDrafted = last.match.hasDrafted;
-            renderAll(); alert("Ação desfeita com sucesso!");
+            renderAll(); 
         }
 
         // ======= GERENCIAMENTO DE JOGADORES =======
@@ -462,21 +469,16 @@
             else state.bench.splice(zeroMatchIndex + 1, 0, player);
         }
 
-        // Toggles a player's active state (used via power button in Participants tab)
         function togglePlayerActive(id) {
             saveStateToHistory();
             const p = state.players.find(x => x.id === id);
             if(p) {
                 p.active = !p.active;
-                if (p.active && state.match.hasDrafted) {
-                    insertLateArrival(p); // Put back to bench
-                }
-                stabilizeTeams(); // Cascades removals and team creation
-                renderAll();
+                if (p.active && state.match.hasDrafted) insertLateArrival(p);
+                stabilizeTeams(); renderAll();
             }
         }
 
-        // Permanent remove
         function removePlayer(id) {
             saveStateToHistory();
             state.players = state.players.filter(x => x.id !== id);
@@ -484,8 +486,7 @@
             state.playing.right.players = state.playing.right.players.filter(x => x.id !== id);
             state.teamsQueue.forEach(t => t.players = t.players.filter(x => x.id !== id));
             state.bench = state.bench.filter(x => x.id !== id);
-            stabilizeTeams();
-            renderAll();
+            stabilizeTeams(); renderAll();
         }
 
         function openEditPlayerModal(id) {
@@ -511,12 +512,9 @@
             closeEditPlayerModal(); renderAll();
         }
 
-        // Solves the double count issue by updating centrally safely
         function updatePlayerStat(id, stat, inc) {
             const p = state.players.find(x => x.id === id);
             if(p) p[stat] += inc;
-            
-            // Apply only if it's a deep copy mismatch
             let pl = state.playing.left.players.find(x => x.id === id); if(pl && pl !== p) pl[stat] += inc;
             let pr = state.playing.right.players.find(x => x.id === id); if(pr && pr !== p) pr[stat] += inc;
             state.teamsQueue.forEach(t => { let pq = t.players.find(x => x.id === id); if(pq && pq !== p) pq[stat] += inc; });
@@ -572,35 +570,26 @@
             renderAll(); switchTab('draft');
         }
 
-        // Responsável por manter a ordem ao apagar/bloquear jogadores
         function stabilizeTeams() {
             if(!state.match.hasDrafted) return;
 
-            // Remove inativos
             state.bench = state.bench.filter(p => p.active);
             state.playing.left.players = state.playing.left.players.filter(p => p.active);
             state.playing.right.players = state.playing.right.players.filter(p => p.active);
             
-            // Tenta encher times da fila com quem está no banco
             for(let i = 0; i < state.teamsQueue.length; i++) {
                 let t = state.teamsQueue[i];
                 t.players = t.players.filter(p => p.active);
-                while(t.players.length < state.teamSize && state.bench.length > 0) {
-                    t.players.push(state.bench.shift());
-                }
+                while(t.players.length < state.teamSize && state.bench.length > 0) t.players.push(state.bench.shift());
             }
             
-            // Se algum time da fila continuar menor que o exigido, ele DEIXA DE EXISTIR
             for(let i = state.teamsQueue.length - 1; i >= 0; i--) {
                 let t = state.teamsQueue[i];
                 if (t.players.length < state.teamSize) {
-                    let leftovers = t.players;
-                    state.teamsQueue.splice(i, 1);
-                    state.bench.unshift(...leftovers); // Viram banco preferencial
+                    let leftovers = t.players; state.teamsQueue.splice(i, 1); state.bench.unshift(...leftovers);
                 }
             }
             
-            // Forma novos times caso o banco tenha ficado grande o suficiente
             while (state.bench.length >= state.teamSize) {
                 const newTeamPlayers = state.bench.splice(0, state.teamSize);
                 state.teamsQueue.push({ id: state.teamCounter, name: `Time ${state.teamCounter}`, players: newTeamPlayers });
@@ -648,7 +637,6 @@
             let totalAvailable = state.bench.length + totalQueue;
             if (totalAvailable === 0) return alert("Nenhum jogador na Fila ou no Banco.");
             
-            // Hide block checkbox if it's an empty slot (playerId is null)
             document.getElementById('sub-block-container').classList.toggle('hidden', playerId === null);
             document.getElementById('sub-block-player').checked = false;
             
@@ -682,18 +670,13 @@
             const title = activeSubPlayerId ? "Sorteio de Substituição" : "Sortear para Vaga Aberta";
             openRouletteModal(title, candidates, (selectedPlayer) => {
                 saveStateToHistory();
-                
                 let teamArr = state.playing[activeSubSide].players;
                 
                 if (activeSubPlayerId) {
-                    // SWAP
                     let pIdx = teamArr.findIndex(p => p.id === activeSubPlayerId);
                     let pToRemove = teamArr[pIdx];
                     
-                    if(isBlocking) {
-                        let pMain = state.players.find(x => x.id === pToRemove.id);
-                        if(pMain) pMain.active = false; // Block it immediately
-                    }
+                    if(isBlocking) { let pMain = state.players.find(x => x.id === pToRemove.id); if(pMain) pMain.active = false; }
                     
                     let qTeam = state.teamsQueue.find(t => t.players.some(p => p.id === selectedPlayer.id));
                     if (qTeam) {
@@ -705,15 +688,12 @@
                     }
                     teamArr[pIdx] = selectedPlayer;
                 } else {
-                    // FILL EMPTY SLOT
                     teamArr.push(selectedPlayer);
                     let qTeam = state.teamsQueue.find(t => t.players.some(p => p.id === selectedPlayer.id));
                     if (qTeam) {
-                        let qIdx = qTeam.players.findIndex(p => p.id === selectedPlayer.id);
-                        qTeam.players.splice(qIdx, 1);
+                        let qIdx = qTeam.players.findIndex(p => p.id === selectedPlayer.id); qTeam.players.splice(qIdx, 1);
                     } else {
-                        let bIdx = state.bench.findIndex(p => p.id === selectedPlayer.id);
-                        if(bIdx > -1) state.bench.splice(bIdx, 1);
+                        let bIdx = state.bench.findIndex(p => p.id === selectedPlayer.id); if(bIdx > -1) state.bench.splice(bIdx, 1);
                     }
                 }
                 
@@ -789,6 +769,7 @@
                 clearInterval(state.match.interval); state.match.timerRunning = false;
                 document.getElementById('timer-icon').className = "fa-solid fa-play"; document.getElementById('timer-btn-text').innerText = "Continuar";
             } else {
+                playBuzzer();
                 state.match.timerRunning = true; document.getElementById('timer-icon').className = "fa-solid fa-pause"; document.getElementById('timer-btn-text').innerText = "Pausar";
                 state.match.interval = setInterval(() => {
                     if(state.match.timerSeconds > 0) {
@@ -820,7 +801,6 @@
             renderAll(); checkGoalLimit();
         }
         
-        // Agora conta gol do time ao somar gol do jogador individual, E NÃO CLONA DADOS (Solução do bug 2)
         function recordStat(playerId, type, side) {
             saveStateToHistory();
             updatePlayerStat(playerId, type === 'goal' ? 'goals' : 'assists', 1);
@@ -922,9 +902,8 @@
             `).join('');
         }
 
-        function generateTeamBoxHTML(title, players, isPlaying, colorTxt, colorBdr, colorBtn, side) {
+        function generateTeamBoxHTML(title, players, isPlaying, colorTxt, colorBdr, side) {
             const badge = isPlaying ? `<p class="text-[10px] text-slate-400">Titulares em campo</p>` : `<p class="text-[10px] text-amber-400">Aguardando na fila...</p>`;
-            const action = isPlaying ? `<button onclick="switchTab('match')" class="${colorBtn} text-slate-950 text-[11px] font-bold px-3 py-1.5 rounded shadow transition active:scale-95 whitespace-nowrap"><i class="fa-solid fa-play mr-1"></i> Partida</button>` : `<span class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-1 rounded border border-slate-700">Na Fila</span>`;
             
             let playersHtml = players.map(p => `
                 <div class="bg-slate-950 p-2 rounded-lg flex justify-between items-center text-xs border border-slate-800">
@@ -936,7 +915,6 @@
                 </div>
             `).join('');
 
-            // Placeholder for empty slots
             if (isPlaying && players.length < state.teamSize) {
                 const emptyCount = state.teamSize - players.length;
                 for (let i = 0; i < emptyCount; i++) {
@@ -950,15 +928,14 @@
             }
 
             return `
-                <div class="bg-slate-900 p-4 rounded-xl border ${colorBdr} shadow-lg flex flex-col h-[340px]">
+                <div class="bg-slate-900 p-4 rounded-xl border ${colorBdr} shadow-lg flex flex-col h-full">
                     <div class="flex justify-between items-center pb-2 border-b border-slate-800 shrink-0 h-12">
                         <div>
                             <h3 class="font-bold text-sm ${colorTxt} truncate">${title} <span class="text-xs text-slate-500 ml-0.5">(${getTeamAverage(players)}★)</span></h3>
                             ${badge}
                         </div>
-                        <div class="ml-2">${action}</div>
                     </div>
-                    <div class="space-y-1.5 flex-1 overflow-y-auto mt-2 pr-1">
+                    <div class="space-y-1.5 flex-1 mt-2">
                         ${players.length === 0 && !isPlaying ? '<div class="text-xs text-slate-500 py-2">Vazio</div>' : playersHtml}
                     </div>
                 </div>
@@ -966,23 +943,35 @@
         }
 
         function renderDraftScreen() {
+            const gearBtn = document.getElementById('btn-draft-gear');
+            const draftControls = document.getElementById('draft-controls');
+            
+            if (state.match.hasDrafted) {
+                if(gearBtn) gearBtn.classList.remove('hidden');
+                if(draftControls) draftControls.classList.add('hidden');
+            } else {
+                if(gearBtn) gearBtn.classList.add('hidden');
+                if(draftControls) draftControls.classList.remove('hidden');
+            }
+
             const area = document.getElementById('teams-display-area');
             if(!state.match.hasDrafted) return area.innerHTML = `<div class="bg-slate-900 p-8 rounded-xl border border-slate-800 text-center space-y-3"><i class="fa-solid fa-people-group text-4xl text-slate-600"></i><h3 class="text-sm font-bold text-white">Nenhum time sorteado ainda</h3></div>`;
 
             let html = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">`;
-            html += generateTeamBoxHTML(state.playing.left.name, state.playing.left.players, true, 'text-emerald-400', 'border-emerald-500/30', 'bg-emerald-500', 'left');
-            html += generateTeamBoxHTML(state.playing.right.name, state.playing.right.players, true, 'text-cyan-400', 'border-cyan-500/30', 'bg-cyan-500', 'right');
+            html += generateTeamBoxHTML(state.playing.left.name, state.playing.left.players, true, 'text-emerald-400', 'border-emerald-500/30', 'left');
+            html += generateTeamBoxHTML(state.playing.right.name, state.playing.right.players, true, 'text-cyan-400', 'border-cyan-500/30', 'right');
 
             const colors = [{ txt: 'text-purple-400', bdr: 'border-purple-500/30' }, { txt: 'text-pink-400', bdr: 'border-pink-500/30' }, { txt: 'text-amber-400', bdr: 'border-amber-500/30' }];
             state.teamsQueue.forEach((team, idx) => {
-                let c = colors[idx % colors.length]; html += generateTeamBoxHTML(team.name, team.players, false, c.txt, c.bdr, 'bg-slate-700', 'none');
+                let c = colors[idx % colors.length];
+                html += generateTeamBoxHTML(team.name, team.players, false, c.txt, c.bdr, 'none');
             });
             html += `</div>`;
             
             html += `
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 mt-4 flex flex-col h-[220px]">
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 mt-4 flex flex-col h-full">
                     <h3 class="text-xs uppercase font-bold text-slate-400 tracking-wider shrink-0"><i class="fa-solid fa-user-clock mr-1"></i> Banco de Reservas (Avulsos)</h3>
-                    <div class="divide-y divide-slate-800 flex-1 overflow-y-auto pr-1">
+                    <div class="divide-y divide-slate-800 flex-1">
                         ${state.bench.length === 0 ? '<div class="text-xs text-slate-500 py-3 text-center">Nenhum jogador avulso na reserva.</div>' : 
                             state.bench.map((p, idx) => `
                                 <div class="py-2 flex justify-between items-center text-xs">
