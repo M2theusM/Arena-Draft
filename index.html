@@ -35,7 +35,7 @@
             </div>
             <div>
                 <h1 class="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">FutHub</h1>
-                <p class="text-[10px] sm:text-xs text-emerald-400 font-medium">Gestão de Elenco & Partidas V:0.4</p>
+                <p class="text-[10px] sm:text-xs text-emerald-400 font-medium">Gestão de Elenco & Partidas V:0.5</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -318,12 +318,16 @@
 
     <!-- Origem Substituição Modal -->
     <div id="modal-sub-options" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl relative">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-5 shadow-2xl relative flex flex-col">
             <button onclick="closeSubOptions()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-base font-bold text-white mb-2">Opções de Sorteio</h3>
             <p class="text-xs text-slate-400 mb-4">Escolha de qual grupo deseja sortear o substituto:</p>
-            <div id="sub-options-container" class="space-y-2 flex flex-col">
+            <div id="sub-options-container" class="space-y-2 flex flex-col mb-4">
                 <!-- Injected via JS -->
+            </div>
+            <div id="sub-block-container" class="pt-4 border-t border-slate-700 flex items-center">
+                <input type="checkbox" id="sub-block-player" class="w-4 h-4 text-rose-500 bg-slate-900 border-slate-600 rounded focus:ring-rose-500 cursor-pointer">
+                <label for="sub-block-player" class="ml-2 text-xs font-medium text-rose-400 cursor-pointer">Bloquear jogador (Vai embora)</label>
             </div>
         </div>
     </div>
@@ -334,8 +338,7 @@
             <button onclick="closeRouletteModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
             <h3 id="roulette-modal-title" class="text-base font-bold text-white px-6">Sorteio</h3>
             
-            <div id="roulette-display-box" class="min-h-[90px] flex flex-col items-center justify-center">
-            </div>
+            <div id="roulette-display-box" class="min-h-[90px] flex flex-col items-center justify-center"></div>
 
             <div id="roulette-actions" class="space-y-2">
                 <button onclick="spinRoulette()" id="btn-spin-action" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm transition shadow-lg active:scale-98">
@@ -371,7 +374,7 @@
             } catch(e) {}
         }
 
-        // ======= ESTADO PRINCIPAL (REFORMULADO) =======
+        // ======= ESTADO PRINCIPAL =======
         let state = {
             players: [],
             teamSize: 7,
@@ -379,8 +382,9 @@
                 left: { id: 1, name: 'Time 1', players: [] },
                 right: { id: 2, name: 'Time 2', players: [] }
             },
-            teamsQueue: [], // Array de objetos de times aguardando (ex: Time 3)
-            bench: [],      // Array dos jogadores que sobraram e ficam no Banco
+            teamsQueue: [], // Filas
+            bench: [],      // Banco
+            teamCounter: 3,
             history: [],
             match: { scoreA: 0, scoreB: 0, timerSeconds: 600, initialSeconds: 600, timerRunning: false, interval: null, durationMinutes: 10, goalLimit: 2, tieBreaker: 'coin', hasDrafted: false }
         };
@@ -388,7 +392,7 @@
         function saveStateToHistory() {
             state.history.push(JSON.parse(JSON.stringify({
                 players: state.players, teamSize: state.teamSize,
-                playing: state.playing, teamsQueue: state.teamsQueue, bench: state.bench,
+                playing: state.playing, teamsQueue: state.teamsQueue, bench: state.bench, teamCounter: state.teamCounter,
                 match: { scoreA: state.match.scoreA, scoreB: state.match.scoreB, timerSeconds: state.match.timerSeconds, hasDrafted: state.match.hasDrafted }
             })));
             if (state.history.length > 20) state.history.shift();
@@ -398,7 +402,7 @@
             if (state.history.length === 0) return alert("Nenhuma ação para desfazer.");
             const last = state.history.pop();
             state.players = last.players; state.teamSize = last.teamSize;
-            state.playing = last.playing; state.teamsQueue = last.teamsQueue; state.bench = last.bench;
+            state.playing = last.playing; state.teamsQueue = last.teamsQueue; state.bench = last.bench; state.teamCounter = last.teamCounter;
             state.match.scoreA = last.match.scoreA; state.match.scoreB = last.match.scoreB;
             state.match.timerSeconds = last.match.timerSeconds; state.match.hasDrafted = last.match.hasDrafted;
             renderAll(); alert("Ação desfeita com sucesso!");
@@ -419,7 +423,11 @@
             saveStateToHistory();
             const newPlayer = { id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 5), name, stars, active: true, matchesPlayed: 0, goals: 0, assists: 0, wins: 0 };
             state.players.push(newPlayer);
-            if(state.match.hasDrafted) state.bench.push(newPlayer); // Se o jogo já começou, vai pro banco
+            
+            if(state.match.hasDrafted) {
+                insertLateArrival(newPlayer);
+                stabilizeTeams();
+            }
 
             document.getElementById('new-player-name').value = ''; document.getElementById('new-player-stars').value = 5; updateStarPreview(5);
             document.getElementById('duplicate-warning').classList.add('hidden'); renderAll();
@@ -441,12 +449,34 @@
                 if(cleaned && !state.players.some(p => p.name.trim().toLowerCase() === cleaned.toLowerCase())) {
                     const newPlayer = { id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 5), name: cleaned, stars, active: true, matchesPlayed: 0, goals: 0, assists: 0, wins: 0 };
                     state.players.push(newPlayer); addedCount++;
-                    if(state.match.hasDrafted) state.bench.push(newPlayer);
+                    if(state.match.hasDrafted) insertLateArrival(newPlayer);
                 }
             });
+            if(state.match.hasDrafted) stabilizeTeams();
             document.getElementById('import-text-area').value = ''; renderAll(); alert(`${addedCount} jogadores importados com sucesso!`);
         }
 
+        function insertLateArrival(player) {
+            const zeroMatchIndex = state.bench.map(p => p.matchesPlayed).lastIndexOf(0);
+            if (zeroMatchIndex === -1) state.bench.unshift(player);
+            else state.bench.splice(zeroMatchIndex + 1, 0, player);
+        }
+
+        // Toggles a player's active state (used via power button in Participants tab)
+        function togglePlayerActive(id) {
+            saveStateToHistory();
+            const p = state.players.find(x => x.id === id);
+            if(p) {
+                p.active = !p.active;
+                if (p.active && state.match.hasDrafted) {
+                    insertLateArrival(p); // Put back to bench
+                }
+                stabilizeTeams(); // Cascades removals and team creation
+                renderAll();
+            }
+        }
+
+        // Permanent remove
         function removePlayer(id) {
             saveStateToHistory();
             state.players = state.players.filter(x => x.id !== id);
@@ -454,11 +484,10 @@
             state.playing.right.players = state.playing.right.players.filter(x => x.id !== id);
             state.teamsQueue.forEach(t => t.players = t.players.filter(x => x.id !== id));
             state.bench = state.bench.filter(x => x.id !== id);
+            stabilizeTeams();
             renderAll();
         }
 
-        function togglePlayerActive(id) { saveStateToHistory(); const p = state.players.find(x => x.id === id); if(p) { p.active = !p.active; renderAll(); } }
-        
         function openEditPlayerModal(id) {
             const p = state.players.find(x => x.id === id); if(!p) return;
             document.getElementById('edit-player-id').value = p.id; document.getElementById('edit-player-name-input').value = p.name;
@@ -482,33 +511,36 @@
             closeEditPlayerModal(); renderAll();
         }
 
-        function updateCloneStats(id, stat, inc) {
-            const p = state.players.find(x => x.id === id); if(p) p[stat] += inc;
-            let pl = state.playing.left.players.find(x => x.id === id); if(pl) pl[stat] += inc;
-            let pr = state.playing.right.players.find(x => x.id === id); if(pr) pr[stat] += inc;
-            state.teamsQueue.forEach(t => { let pq = t.players.find(x => x.id === id); if(pq) pq[stat] += inc; });
-            let pb = state.bench.find(x => x.id === id); if(pb) pb[stat] += inc;
+        // Solves the double count issue by updating centrally safely
+        function updatePlayerStat(id, stat, inc) {
+            const p = state.players.find(x => x.id === id);
+            if(p) p[stat] += inc;
+            
+            // Apply only if it's a deep copy mismatch
+            let pl = state.playing.left.players.find(x => x.id === id); if(pl && pl !== p) pl[stat] += inc;
+            let pr = state.playing.right.players.find(x => x.id === id); if(pr && pr !== p) pr[stat] += inc;
+            state.teamsQueue.forEach(t => { let pq = t.players.find(x => x.id === id); if(pq && pq !== p) pq[stat] += inc; });
+            let pb = state.bench.find(x => x.id === id); if(pb && pb !== p) pb[stat] += inc;
         }
 
         function confirmResetSystem() {
             if(confirm("Zerar todo o sistema e reiniciar as configurações?")) {
                 saveStateToHistory();
-                state.players = []; state.teamsQueue = []; state.bench = [];
+                state.players = []; state.teamsQueue = []; state.bench = []; state.teamCounter = 3;
                 state.playing = { left: { id: 1, name: 'Time 1', players: [] }, right: { id: 2, name: 'Time 2', players: [] } };
                 state.match = { scoreA: 0, scoreB: 0, timerSeconds: 600, initialSeconds: 600, timerRunning: false, interval: null, durationMinutes: 10, goalLimit: 2, tieBreaker: 'coin', hasDrafted: false };
                 renderAll(); alert("Sistema reiniciado.");
             }
         }
 
-        // ======= ALGORITMO DE DRAFT (EXATO & BALANCEADO) =======
+        // ======= ALGORITMO DRAFT & ESTABILIZAÇÃO =======
         function executeDraft() {
             const activePlayers = state.players.filter(p => p.active);
             let teamSize = parseInt(document.getElementById('team-size-input').value) || 7;
             let numTeams = Math.floor(activePlayers.length / teamSize);
 
             if (numTeams < 2) {
-                numTeams = 2;
-                teamSize = Math.floor(activePlayers.length / 2);
+                numTeams = 2; teamSize = Math.floor(activePlayers.length / 2);
                 if (teamSize < 1) return alert("Número de jogadores insuficiente para formar 2 times.");
                 document.getElementById('team-size-input').value = teamSize;
             }
@@ -516,13 +548,11 @@
             state.teamSize = teamSize;
             saveStateToHistory();
 
-            // Pega apenas a quantidade exata para formar os times completos. A sobra vai direto pro banco.
             let pool = [...activePlayers].sort((a,b) => b.stars !== a.stars ? b.stars - a.stars : Math.random() - 0.5);
             let draftedPool = pool.slice(0, numTeams * teamSize);
-            state.bench = pool.slice(numTeams * teamSize); // O que sobra
+            state.bench = pool.slice(numTeams * teamSize);
 
             let chunks = Array.from({length: numTeams}, () => []);
-            // Snake Draft perfeito
             draftedPool.forEach((p, i) => {
                 let round = Math.floor(i / numTeams);
                 let teamIdx = (round % 2 === 0) ? (i % numTeams) : ((numTeams - 1) - (i % numTeams));
@@ -532,82 +562,100 @@
             state.playing.left = { id: 1, name: 'Time 1', players: chunks[0] };
             state.playing.right = { id: 2, name: 'Time 2', players: chunks[1] };
             
-            state.teamsQueue = [];
+            state.teamsQueue = []; state.teamCounter = 3;
             for (let i = 2; i < numTeams; i++) {
-                state.teamsQueue.push({ id: i+1, name: `Time ${i+1}`, players: chunks[i] });
+                state.teamsQueue.push({ id: state.teamCounter, name: `Time ${state.teamCounter}`, players: chunks[i] });
+                state.teamCounter++;
             }
 
             state.match.hasDrafted = true; state.match.scoreA = 0; state.match.scoreB = 0; resetTimer();
             renderAll(); switchTab('draft');
         }
 
-        // Função Matemática de Combinação de Array para achar a melhor rotação
+        // Responsável por manter a ordem ao apagar/bloquear jogadores
+        function stabilizeTeams() {
+            if(!state.match.hasDrafted) return;
+
+            // Remove inativos
+            state.bench = state.bench.filter(p => p.active);
+            state.playing.left.players = state.playing.left.players.filter(p => p.active);
+            state.playing.right.players = state.playing.right.players.filter(p => p.active);
+            
+            // Tenta encher times da fila com quem está no banco
+            for(let i = 0; i < state.teamsQueue.length; i++) {
+                let t = state.teamsQueue[i];
+                t.players = t.players.filter(p => p.active);
+                while(t.players.length < state.teamSize && state.bench.length > 0) {
+                    t.players.push(state.bench.shift());
+                }
+            }
+            
+            // Se algum time da fila continuar menor que o exigido, ele DEIXA DE EXISTIR
+            for(let i = state.teamsQueue.length - 1; i >= 0; i--) {
+                let t = state.teamsQueue[i];
+                if (t.players.length < state.teamSize) {
+                    let leftovers = t.players;
+                    state.teamsQueue.splice(i, 1);
+                    state.bench.unshift(...leftovers); // Viram banco preferencial
+                }
+            }
+            
+            // Forma novos times caso o banco tenha ficado grande o suficiente
+            while (state.bench.length >= state.teamSize) {
+                const newTeamPlayers = state.bench.splice(0, state.teamSize);
+                state.teamsQueue.push({ id: state.teamCounter, name: `Time ${state.teamCounter}`, players: newTeamPlayers });
+                state.teamCounter++;
+            }
+        }
+
         function getCombinations(arr, k) {
-            if (k <= 0) return [[]];
-            if (k > arr.length) return [arr];
+            if (k <= 0) return [[]]; if (k > arr.length) return [arr];
             const result = [];
             function combine(start, combo) {
                 if (combo.length === k) { result.push([...combo]); return; }
-                for (let i = start; i < arr.length; i++) {
-                    combo.push(arr[i]); combine(i + 1, combo); combo.pop();
-                }
+                for (let i = start; i < arr.length; i++) { combo.push(arr[i]); combine(i + 1, combo); combo.pop(); }
             }
-            combine(0, []);
-            return result;
+            combine(0, []); return result;
         }
 
-        // Junta Time que perdeu com Banco, mantendo balanceamento!
         function mergeAndBalance(loserPlayers, benchPlayers, targetAvg, teamSize) {
             const needed = teamSize - benchPlayers.length;
             if (needed <= 0 || needed > loserPlayers.length) {
                 let combined = [...loserPlayers, ...benchPlayers];
                 return { newTeam: combined.slice(0, teamSize), newBench: combined.slice(teamSize) };
             }
-
             const combos = getCombinations(loserPlayers, needed);
-            let bestCombo = combos[0];
-            let minDiff = Infinity;
-            let maxBenchMatches = -1;
-            let bestBench = [];
-
+            let bestCombo = combos[0], minDiff = Infinity, maxBenchMatches = -1, bestBench = [];
             combos.forEach(combo => {
                 const potentialTeam = [...combo, ...benchPlayers];
                 const avg = potentialTeam.reduce((sum, p) => sum + p.stars, 0) / teamSize;
                 const diff = Math.abs(avg - targetAvg);
-                
-                // Os jogadores do time que perdeu que não foram selecionados vão para o banco novo
                 const leftover = loserPlayers.filter(p => !combo.some(c => c.id === p.id));
                 const benchMatches = leftover.reduce((sum, p) => sum + p.matchesPlayed, 0);
-
-                if (diff < minDiff - 0.01) {
-                    minDiff = diff; bestCombo = potentialTeam; maxBenchMatches = benchMatches; bestBench = leftover;
-                } else if (Math.abs(diff - minDiff) <= 0.01) {
-                    // Critério de desempate: mandar pro banco quem jogou mais partidas
-                    if (benchMatches > maxBenchMatches) {
-                        maxBenchMatches = benchMatches; bestCombo = potentialTeam; bestBench = leftover;
-                    }
-                }
+                if (diff < minDiff - 0.01) { minDiff = diff; bestCombo = potentialTeam; maxBenchMatches = benchMatches; bestBench = leftover; } 
+                else if (Math.abs(diff - minDiff) <= 0.01) { if (benchMatches > maxBenchMatches) { maxBenchMatches = benchMatches; bestCombo = potentialTeam; bestBench = leftover; } }
             });
-
             return { newTeam: bestCombo, newBench: bestBench };
         }
 
         // ======= SUBSTITUTIONS =======
-        let activeSubSide = null;
-        let activeSubPlayerId = null;
+        let activeSubSide = null; let activeSubPlayerId = null;
 
         function openSubMenuModal(side, playerId) {
             activeSubSide = side; activeSubPlayerId = playerId;
+            
             let totalQueue = state.teamsQueue.reduce((acc, t) => acc + t.players.length, 0);
             let totalAvailable = state.bench.length + totalQueue;
             if (totalAvailable === 0) return alert("Nenhum jogador na Fila ou no Banco.");
             
-            let html = `<button onclick="startSubRoulette('all')" class="w-full bg-indigo-500 hover:bg-indigo-400 text-white font-bold py-2 px-4 rounded-lg text-sm text-left shadow transition mb-2">Todos disponíveis (${totalAvailable})</button>`;
+            // Hide block checkbox if it's an empty slot (playerId is null)
+            document.getElementById('sub-block-container').classList.toggle('hidden', playerId === null);
+            document.getElementById('sub-block-player').checked = false;
             
+            let html = `<button onclick="startSubRoulette('all')" class="w-full bg-indigo-500 hover:bg-indigo-400 text-white font-bold py-2 px-4 rounded-lg text-sm text-left shadow transition mb-2">Todos disponíveis (${totalAvailable})</button>`;
             state.teamsQueue.forEach((t, idx) => {
                 html += `<button onclick="startSubRoulette('team', ${idx})" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold py-2 px-4 rounded-lg text-sm text-left transition mb-1">${t.name} (${t.players.length})</button>`;
             });
-            
             if (state.bench.length > 0) {
                 html += `<button onclick="startSubRoulette('bench')" class="w-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 font-semibold py-2 px-4 rounded-lg text-sm text-left transition mb-1">Banco de Reservas (${state.bench.length})</button>`;
             }
@@ -618,38 +666,58 @@
 
         function closeSubOptions() { document.getElementById('modal-sub-options').classList.add('hidden'); }
 
-        let currentRouletteCandidates = [];
-        let rouletteCallback = null;
-        let rouletteMode = 'sub';
+        let currentRouletteCandidates = []; let rouletteCallback = null; let rouletteMode = 'sub';
 
         function startSubRoulette(source, idx) {
+            const isBlocking = document.getElementById('sub-block-player').checked && activeSubPlayerId !== null;
             closeSubOptions();
-            let candidates = [];
-            if (source === 'all') {
-                candidates = [...state.bench];
-                state.teamsQueue.forEach(t => candidates.push(...t.players));
-            } else if (source === 'team') {
-                candidates = [...state.teamsQueue[idx].players];
-            } else if (source === 'bench') {
-                candidates = [...state.bench];
-            }
             
-            openRouletteModal("Sorteio de Substituição", candidates, (selectedPlayer) => {
+            let candidates = [];
+            if (source === 'all') { candidates = [...state.bench]; state.teamsQueue.forEach(t => candidates.push(...t.players)); } 
+            else if (source === 'team') { candidates = [...state.teamsQueue[idx].players]; } 
+            else if (source === 'bench') { candidates = [...state.bench]; }
+            
+            if(candidates.length === 0) return alert("Nenhum candidato.");
+            
+            const title = activeSubPlayerId ? "Sorteio de Substituição" : "Sortear para Vaga Aberta";
+            openRouletteModal(title, candidates, (selectedPlayer) => {
                 saveStateToHistory();
-                let teamArr = state.playing[activeSubSide].players;
-                let pIdx = teamArr.findIndex(p => p.id === activeSubPlayerId);
                 
-                // Encontrar o selecionado na fila ou banco para fazer o SWAP (Troca)
-                let qTeam = state.teamsQueue.find(t => t.players.some(p => p.id === selectedPlayer.id));
-                if (qTeam) {
-                    let qIdx = qTeam.players.findIndex(p => p.id === selectedPlayer.id);
-                    qTeam.players[qIdx] = teamArr[pIdx]; // O que sai assume o lugar na fila
+                let teamArr = state.playing[activeSubSide].players;
+                
+                if (activeSubPlayerId) {
+                    // SWAP
+                    let pIdx = teamArr.findIndex(p => p.id === activeSubPlayerId);
+                    let pToRemove = teamArr[pIdx];
+                    
+                    if(isBlocking) {
+                        let pMain = state.players.find(x => x.id === pToRemove.id);
+                        if(pMain) pMain.active = false; // Block it immediately
+                    }
+                    
+                    let qTeam = state.teamsQueue.find(t => t.players.some(p => p.id === selectedPlayer.id));
+                    if (qTeam) {
+                        let qIdx = qTeam.players.findIndex(p => p.id === selectedPlayer.id);
+                        if(isBlocking) qTeam.players.splice(qIdx, 1); else qTeam.players[qIdx] = pToRemove;
+                    } else {
+                        let bIdx = state.bench.findIndex(p => p.id === selectedPlayer.id);
+                        if(bIdx > -1) { if(isBlocking) state.bench.splice(bIdx, 1); else state.bench[bIdx] = pToRemove; }
+                    }
+                    teamArr[pIdx] = selectedPlayer;
                 } else {
-                    let bIdx = state.bench.findIndex(p => p.id === selectedPlayer.id);
-                    if (bIdx > -1) state.bench[bIdx] = teamArr[pIdx]; // O que sai vai pro banco
+                    // FILL EMPTY SLOT
+                    teamArr.push(selectedPlayer);
+                    let qTeam = state.teamsQueue.find(t => t.players.some(p => p.id === selectedPlayer.id));
+                    if (qTeam) {
+                        let qIdx = qTeam.players.findIndex(p => p.id === selectedPlayer.id);
+                        qTeam.players.splice(qIdx, 1);
+                    } else {
+                        let bIdx = state.bench.findIndex(p => p.id === selectedPlayer.id);
+                        if(bIdx > -1) state.bench.splice(bIdx, 1);
+                    }
                 }
-                teamArr[pIdx] = selectedPlayer; // O substituto entra no time
-                renderAll();
+                
+                stabilizeTeams(); renderAll();
             });
         }
 
@@ -658,8 +726,7 @@
             currentRouletteCandidates = candidates; rouletteCallback = callback;
             
             let html = `<div class="grid grid-cols-2 gap-2 w-full max-h-48 overflow-y-auto mt-2">`;
-            candidates.forEach(c => { html += `<div id="cand-${c.id}" class="p-2 border border-slate-700 bg-slate-800 rounded text-sm text-slate-300 transition-colors">${c.name}</div>`; });
-            html += `</div>`;
+            candidates.forEach(c => { html += `<div id="cand-${c.id}" class="p-2 border border-slate-700 bg-slate-800 rounded text-sm text-slate-300 transition-colors">${c.name}</div>`; }); html += `</div>`;
             
             document.getElementById('roulette-display-box').innerHTML = html;
             document.getElementById('btn-spin-action').classList.remove('hidden'); document.getElementById('btn-spin-action').innerText = "Girar Roleta";
@@ -668,25 +735,22 @@
 
         function openContinuousCoinToss() {
             rouletteMode = 'coin'; document.getElementById('roulette-modal-title').innerText = "Cara ou Coroa";
-            
             const coinHtml = `
                 <div class="relative w-32 h-32 mx-auto perspective-1000 mt-4 mb-4">
                     <div id="3d-coin" class="w-full h-full relative rounded-full shadow-2xl coin-wrapper spin-infinite">
-                        <div class="coin-face coin-front text-2xl font-black border-4 border-amber-600 text-center flex-col leading-tight pt-4">CARA<br><span class="text-[10px] opacity-70">${state.playing.left.name}</span></div>
-                        <div class="coin-face coin-back text-2xl font-black border-4 border-amber-600 text-center flex-col leading-tight pt-4">COROA<br><span class="text-[10px] opacity-70">${state.playing.right.name}</span></div>
+                        <div class="coin-face coin-front text-2xl font-black border-4 border-amber-600 text-center flex items-center justify-center">CARA</div>
+                        <div class="coin-face coin-back text-2xl font-black border-4 border-amber-600 text-center flex items-center justify-center">COROA</div>
                     </div>
                 </div>
                 <p id="coin-result-text" class="text-sm font-bold text-slate-300 h-6"></p>
                 <div id="coin-winner-buttons" class="hidden flex space-x-2 w-full mt-4">
                     <button onclick="finishMatch('left'); closeRouletteModal()" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 rounded-lg text-xs truncate px-1">Venceu ${state.playing.left.name}</button>
                     <button onclick="finishMatch('right'); closeRouletteModal()" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2 rounded-lg text-xs truncate px-1">Venceu ${state.playing.right.name}</button>
-                </div>
-            `;
+                </div>`;
             document.getElementById('roulette-display-box').innerHTML = coinHtml;
             document.getElementById('btn-spin-action').classList.remove('hidden'); document.getElementById('btn-spin-action').innerText = "GIRAR MOEDA";
             document.getElementById('btn-close-roulette').classList.add('hidden'); document.getElementById('modal-roulette').classList.remove('hidden');
         }
-
         function closeRouletteModal() { document.getElementById('modal-roulette').classList.add('hidden'); }
 
         function spinRoulette() {
@@ -694,7 +758,6 @@
                 if(currentRouletteCandidates.length === 0) return;
                 document.getElementById('btn-spin-action').classList.add('hidden');
                 const end = Date.now() + 5000; let lastHighlightedId = null;
-                
                 let interval = setInterval(() => {
                     if (lastHighlightedId) {
                         const el = document.getElementById(`cand-${lastHighlightedId}`);
@@ -704,28 +767,17 @@
                     lastHighlightedId = randPlayer.id;
                     const highlightEl = document.getElementById(`cand-${randPlayer.id}`);
                     if(highlightEl) { highlightEl.classList.remove('bg-slate-800', 'text-slate-300'); highlightEl.classList.add('bg-emerald-500', 'text-slate-950', 'font-bold'); }
-                    
-                    if(Date.now() >= end) {
-                        clearInterval(interval); document.getElementById('btn-close-roulette').classList.remove('hidden');
-                        if(rouletteCallback) rouletteCallback(randPlayer);
-                    }
+                    if(Date.now() >= end) { clearInterval(interval); document.getElementById('btn-close-roulette').classList.remove('hidden'); if(rouletteCallback) rouletteCallback(randPlayer); }
                 }, 100);
-            } 
-            else if (rouletteMode === 'coin') {
-                document.getElementById('btn-spin-action').classList.add('hidden');
-                const coinEl = document.getElementById('3d-coin');
-                const resultText = document.getElementById('coin-result-text');
+            } else if (rouletteMode === 'coin') {
+                document.getElementById('btn-spin-action').classList.add('hidden'); const coinEl = document.getElementById('3d-coin'); const resultText = document.getElementById('coin-result-text');
                 coinEl.classList.remove('spin-infinite');
-                
                 setTimeout(() => {
-                    const isCara = Math.random() > 0.5;
-                    const spins = 10; const extraDegrees = isCara ? 0 : 180; 
+                    const isCara = Math.random() > 0.5; const spins = 10; const extraDegrees = isCara ? 0 : 180; 
                     coinEl.style.transform = `rotateY(${(spins * 360) + extraDegrees}deg)`;
                     setTimeout(() => {
-                        resultText.innerText = `RESULTADO: ${isCara ? 'CARA' : 'COROA'}!`;
-                        resultText.classList.add('text-amber-400');
-                        document.getElementById('coin-winner-buttons').classList.remove('hidden');
-                        document.getElementById('coin-winner-buttons').classList.add('flex');
+                        resultText.innerText = `RESULTADO: ${isCara ? 'CARA' : 'COROA'}!`; resultText.classList.add('text-amber-400');
+                        document.getElementById('coin-winner-buttons').classList.remove('hidden'); document.getElementById('coin-winner-buttons').classList.add('flex');
                     }, 5000);
                 }, 50);
             }
@@ -737,8 +789,7 @@
                 clearInterval(state.match.interval); state.match.timerRunning = false;
                 document.getElementById('timer-icon').className = "fa-solid fa-play"; document.getElementById('timer-btn-text').innerText = "Continuar";
             } else {
-                state.match.timerRunning = true;
-                document.getElementById('timer-icon').className = "fa-solid fa-pause"; document.getElementById('timer-btn-text').innerText = "Pausar";
+                state.match.timerRunning = true; document.getElementById('timer-icon').className = "fa-solid fa-pause"; document.getElementById('timer-btn-text').innerText = "Pausar";
                 state.match.interval = setInterval(() => {
                     if(state.match.timerSeconds > 0) {
                         state.match.timerSeconds--; updateTimerDisplay(); checkGoalLimit();
@@ -768,11 +819,14 @@
             if(side === 'left') state.match.scoreA++; else state.match.scoreB++;
             renderAll(); checkGoalLimit();
         }
+        
+        // Agora conta gol do time ao somar gol do jogador individual, E NÃO CLONA DADOS (Solução do bug 2)
         function recordStat(playerId, type, side) {
             saveStateToHistory();
-            updateCloneStats(playerId, type === 'goal' ? 'goals' : 'assists', 1);
+            updatePlayerStat(playerId, type === 'goal' ? 'goals' : 'assists', 1);
             if(type === 'goal') addGoal(side, false); else renderAll();
         }
+
         function openMatchSettings() {
             document.getElementById('setting-match-duration').value = state.match.durationMinutes; document.getElementById('setting-goal-limit').value = state.match.goalLimit;
             document.getElementById('setting-tie-breaker').value = state.match.tieBreaker; document.getElementById('modal-match-settings').classList.remove('hidden');
@@ -802,36 +856,31 @@
         function executeRotation(loserSide, winnerSide) {
             let loserTeam = state.playing[loserSide];
             
-            // Re-balanceia pegando banco e removendo quem jogou mais pro banco
             if (state.bench.length > 0) {
                 let targetAvg = winnerSide ? getTeamAverage(state.playing[winnerSide].players) : getTeamAverage(loserTeam.players);
                 let merged = mergeAndBalance(loserTeam.players, state.bench, targetAvg, state.teamSize);
-                loserTeam.players = merged.newTeam;
-                state.bench = merged.newBench;
+                loserTeam.players = merged.newTeam; state.bench = merged.newBench;
             }
             
-            // Perdedor vai pro fim da fila, com o SEU NOME fixo intacto
             state.teamsQueue.push(loserTeam);
+            if(state.teamsQueue.length > 0) state.playing[loserSide] = state.teamsQueue.shift();
             
-            // O Próximo da Fila assume a Posição
-            if(state.teamsQueue.length > 0) {
-                state.playing[loserSide] = state.teamsQueue.shift();
-            }
+            stabilizeTeams();
         }
 
         function finishMatch(winner) {
             saveStateToHistory();
-            state.playing.left.players.forEach(p => updateCloneStats(p.id, 'matchesPlayed', 1)); state.playing.right.players.forEach(p => updateCloneStats(p.id, 'matchesPlayed', 1));
-            if(winner === 'left') state.playing.left.players.forEach(p => updateCloneStats(p.id, 'wins', 1)); else if(winner === 'right') state.playing.right.players.forEach(p => updateCloneStats(p.id, 'wins', 1));
+            state.playing.left.players.forEach(p => updatePlayerStat(p.id, 'matchesPlayed', 1)); 
+            state.playing.right.players.forEach(p => updatePlayerStat(p.id, 'matchesPlayed', 1));
+            
+            if(winner === 'left') state.playing.left.players.forEach(p => updatePlayerStat(p.id, 'wins', 1)); 
+            else if(winner === 'right') state.playing.right.players.forEach(p => updatePlayerStat(p.id, 'wins', 1));
 
             if(winner === 'left') { executeRotation('right', 'left'); } 
             else if(winner === 'right') { executeRotation('left', 'right'); } 
-            else { 
-                executeRotation('left', null); executeRotation('right', null); // Ambos saem
-            }
+            else { executeRotation('left', null); executeRotation('right', null); }
 
-            state.match.scoreA = 0; state.match.scoreB = 0; resetTimer();
-            renderAll(); switchTab('draft');
+            state.match.scoreA = 0; state.match.scoreB = 0; resetTimer(); renderAll(); switchTab('draft');
             const winnerName = winner === 'left' ? state.playing.left.name : (winner === 'right' ? state.playing.right.name : 'Ninguém (Empate - Ambos saíram)');
             alert(`Partida encerrada! Vencedor: ${winnerName}`);
         }
@@ -842,32 +891,27 @@
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('border-emerald-500', 'text-emerald-400'); btn.classList.add('border-transparent', 'text-slate-400'); });
-            document.getElementById('tab-' + tabId).classList.add('active');
-            const activeBtn = document.getElementById('nav-' + tabId);
+            document.getElementById('tab-' + tabId).classList.add('active'); const activeBtn = document.getElementById('nav-' + tabId);
             if(activeBtn) { activeBtn.classList.remove('border-transparent', 'text-slate-400'); activeBtn.classList.add('border-emerald-500', 'text-emerald-400'); }
         }
 
-        function getTeamAverage(players) {
-            if(players.length === 0) return 0;
-            return (players.reduce((sum, p) => sum + p.stars, 0) / players.length).toFixed(1);
-        }
+        function getTeamAverage(players) { if(players.length === 0) return 0; return (players.reduce((sum, p) => sum + p.stars, 0) / players.length).toFixed(1); }
 
         function renderAll() { renderParticipants(); renderDraftScreen(); renderMatchScreen(); renderRankings(); }
 
         function renderParticipants() {
-            const container = document.getElementById('participants-list-container');
-            document.getElementById('player-count-badge').innerText = state.players.length + ' jogadores';
+            const container = document.getElementById('participants-list-container'); document.getElementById('player-count-badge').innerText = state.players.length + ' jogadores';
             if(state.players.length === 0) return container.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">Nenhum participante.</div>`;
 
             container.innerHTML = state.players.map(p => `
                 <div class="p-3 flex items-center justify-between hover:bg-slate-800/50 transition">
                     <div class="flex items-center space-x-3 cursor-pointer" onclick="openEditPlayerModal('${p.id}')">
-                        <button onclick="event.stopPropagation(); togglePlayerActive('${p.id}')" class="w-6 h-6 rounded-full flex items-center justify-center text-xs ${p.active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'}" title="${p.active ? 'Ativo' : 'Inativo'}">
+                        <button onclick="event.stopPropagation(); togglePlayerActive('${p.id}')" class="w-6 h-6 rounded-full flex items-center justify-center text-xs ${p.active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'}" title="${p.active ? 'Ativo' : 'Inativo (Bloqueado)'}">
                             <i class="fa-solid fa-power-off text-[10px]"></i>
                         </button>
                         <div>
-                            <span class="text-sm font-bold text-white hover:text-emerald-400 transition">${p.name}</span>
-                            <div class="text-xs text-amber-400">${'★'.repeat(p.stars)}${'☆'.repeat(5 - p.stars)}</div>
+                            <span class="text-sm font-bold text-white hover:text-emerald-400 transition ${!p.active ? 'opacity-50 line-through' : ''}">${p.name}</span>
+                            <div class="text-xs text-amber-400 ${!p.active ? 'opacity-50' : ''}">${'★'.repeat(p.stars)}${'☆'.repeat(5 - p.stars)}</div>
                         </div>
                     </div>
                     <div class="flex items-center space-x-2">
@@ -882,6 +926,29 @@
             const badge = isPlaying ? `<p class="text-[10px] text-slate-400">Titulares em campo</p>` : `<p class="text-[10px] text-amber-400">Aguardando na fila...</p>`;
             const action = isPlaying ? `<button onclick="switchTab('match')" class="${colorBtn} text-slate-950 text-[11px] font-bold px-3 py-1.5 rounded shadow transition active:scale-95 whitespace-nowrap"><i class="fa-solid fa-play mr-1"></i> Partida</button>` : `<span class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-1 rounded border border-slate-700">Na Fila</span>`;
             
+            let playersHtml = players.map(p => `
+                <div class="bg-slate-950 p-2 rounded-lg flex justify-between items-center text-xs border border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <span class="font-semibold text-white">${p.name}</span>
+                        <span class="text-amber-400 text-[10px]">${'★'.repeat(p.stars)}</span>
+                    </div>
+                    ${isPlaying ? `<button onclick="openSubMenuModal('${side}', '${p.id}')" class="text-slate-400 hover:text-amber-400 p-1" title="Substituir"><i class="fa-solid fa-user-slash text-[10px]"></i></button>` : ''}
+                </div>
+            `).join('');
+
+            // Placeholder for empty slots
+            if (isPlaying && players.length < state.teamSize) {
+                const emptyCount = state.teamSize - players.length;
+                for (let i = 0; i < emptyCount; i++) {
+                    playersHtml += `
+                        <div class="bg-slate-950/50 p-2 rounded-lg flex justify-between items-center text-xs border border-dashed border-rose-500/50">
+                            <span class="text-rose-400 font-semibold italic">Vaga Aberta</span>
+                            <button onclick="openSubMenuModal('${side}', null)" class="bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white px-2 py-1 rounded transition text-[10px] font-bold">Sortear Vaga</button>
+                        </div>
+                    `;
+                }
+            }
+
             return `
                 <div class="bg-slate-900 p-4 rounded-xl border ${colorBdr} shadow-lg flex flex-col h-[340px]">
                     <div class="flex justify-between items-center pb-2 border-b border-slate-800 shrink-0 h-12">
@@ -892,15 +959,7 @@
                         <div class="ml-2">${action}</div>
                     </div>
                     <div class="space-y-1.5 flex-1 overflow-y-auto mt-2 pr-1">
-                        ${players.length === 0 ? '<div class="text-xs text-slate-500 py-2">Vazio</div>' : players.map(p => `
-                            <div class="bg-slate-950 p-2 rounded-lg flex justify-between items-center text-xs border border-slate-800">
-                                <div class="flex items-center space-x-2">
-                                    <span class="font-semibold text-white">${p.name}</span>
-                                    <span class="text-amber-400 text-[10px]">${'★'.repeat(p.stars)}</span>
-                                </div>
-                                ${isPlaying ? `<button onclick="openSubMenuModal('${side}', '${p.id}')" class="text-slate-400 hover:text-amber-400 p-1" title="Substituir"><i class="fa-solid fa-user-slash text-[10px]"></i></button>` : ''}
-                            </div>
-                        `).join('')}
+                        ${players.length === 0 && !isPlaying ? '<div class="text-xs text-slate-500 py-2">Vazio</div>' : playersHtml}
                     </div>
                 </div>
             `;
@@ -916,12 +975,10 @@
 
             const colors = [{ txt: 'text-purple-400', bdr: 'border-purple-500/30' }, { txt: 'text-pink-400', bdr: 'border-pink-500/30' }, { txt: 'text-amber-400', bdr: 'border-amber-500/30' }];
             state.teamsQueue.forEach((team, idx) => {
-                let c = colors[idx % colors.length];
-                html += generateTeamBoxHTML(team.name, team.players, false, c.txt, c.bdr, 'bg-slate-700', 'none');
+                let c = colors[idx % colors.length]; html += generateTeamBoxHTML(team.name, team.players, false, c.txt, c.bdr, 'bg-slate-700', 'none');
             });
             html += `</div>`;
             
-            // Banco de Reservas
             html += `
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 mt-4 flex flex-col h-[220px]">
                     <h3 class="text-xs uppercase font-bold text-slate-400 tracking-wider shrink-0"><i class="fa-solid fa-user-clock mr-1"></i> Banco de Reservas (Avulsos)</h3>
@@ -948,8 +1005,7 @@
             const boxA = document.getElementById('match-players-a'); const boxB = document.getElementById('match-players-b');
 
             if(!state.match.hasDrafted) {
-                boxA.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Gere o sorteio primeiro.</div>';
-                boxB.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Gere o sorteio primeiro.</div>'; return;
+                boxA.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Gere o sorteio primeiro.</div>'; boxB.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">Gere o sorteio primeiro.</div>'; return;
             }
 
             document.getElementById('match-team-a-name').innerText = state.playing.left.name; document.getElementById('match-team-b-name').innerText = state.playing.right.name;
@@ -968,7 +1024,22 @@
                     </div>
                 </div>
             `;
-            boxA.innerHTML = state.playing.left.players.map(p => genPlayer(p, 'left')).join(''); boxB.innerHTML = state.playing.right.players.map(p => genPlayer(p, 'right')).join('');
+            
+            let htmlA = state.playing.left.players.map(p => genPlayer(p, 'left')).join('');
+            if (state.playing.left.players.length < state.teamSize) {
+                for (let i = 0; i < state.teamSize - state.playing.left.players.length; i++) {
+                    htmlA += `<div class="bg-slate-950/50 p-2 rounded-lg flex justify-between items-center text-xs border border-dashed border-rose-500/50"><span class="text-rose-400 font-semibold italic">Vaga Aberta</span><button onclick="openSubMenuModal('left', null)" class="bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white px-3 py-1 rounded transition text-[10px] font-bold">Sortear</button></div>`;
+                }
+            }
+            boxA.innerHTML = htmlA;
+            
+            let htmlB = state.playing.right.players.map(p => genPlayer(p, 'right')).join('');
+            if (state.playing.right.players.length < state.teamSize) {
+                for (let i = 0; i < state.teamSize - state.playing.right.players.length; i++) {
+                    htmlB += `<div class="bg-slate-950/50 p-2 rounded-lg flex justify-between items-center text-xs border border-dashed border-rose-500/50"><span class="text-rose-400 font-semibold italic">Vaga Aberta</span><button onclick="openSubMenuModal('right', null)" class="bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white px-3 py-1 rounded transition text-[10px] font-bold">Sortear</button></div>`;
+                }
+            }
+            boxB.innerHTML = htmlB;
         }
 
         function renderRankings() {
